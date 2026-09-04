@@ -35,6 +35,7 @@ endif()
 
 add_library(darling STATIC
     darling/canvas.c
+    darling/compositor.c
     darling/container.c
     darling/label.c
     darling/panel.c

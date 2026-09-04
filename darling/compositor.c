@@ -1,0 +1,386 @@
+#include "annotation/overview.h"
+#include "darling/compositor.h"
+#include "darling/container.h"
+#include "darling/panel.h"
+#include "darling/scene.h"
+#include "nio/mem.h"
+#include "oop/type.h"
+#include "time/nanotime.h"
+#include "vulkan/vk.h"
+#include "vulkan/vk_iosurface.h"
+#include "vulkan/vk_scene.h"
+#include "vulkan/vk_view.h"
+#include "window/window.h"
+
+#include <vulkan/vulkan_core.h>
+#include <IOSurface/IOSurface.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+;;OVERVIEW
+/**
+ * ============================================================================
+ * CLASS: Compositor
+ * ============================================================================
+ * Retained-mode UI compositor connecting Darling UI nodes, IOSurface overlays,
+ * and Vulkan scene viewports into the host window and presentation loop.
+ *
+ * FUNCTION REGISTRY:
+ * ----------------------------------------------------------------------------
+ * Core Functions:
+ *   - Darling_initCompositor(window)
+ *   - Darling_renderFrame(cmdBuffer, drawW, drawH, userdata)
+ * ============================================================================
+ */
+
+// Accessors for Vulkan device state from vexspoke
+extern VkDevice Vk_getDevice(void);
+extern VkQueue Vk_getQueue(void);
+extern VkCommandBuffer Vk_getCmdBuffer(void);
+extern VkPipeline Vk_getTriPipeline(void);
+extern VkPipelineLayout Vk_getTriLayout(void);
+extern uint64_t Vk_getAnimStartNanos(void);
+extern PFN_vkGetDeviceProcAddr Vk_getGdpa(void);
+extern VkInstance Vk_getInstance(void);
+extern PFN_vkGetInstanceProcAddr Vk_getGpa(void);
+extern VkPhysicalDevice Vk_getPhys(void);
+extern uint32_t Vk_getQueueFamily(void);
+extern bool VkMac_ensureIOSurfacePass(void);
+extern VkRenderPass VkMac_getIOSurfacePass(void);
+
+extern bool VkView_refreshAll(VkInstance instance, PFN_vkGetInstanceProcAddr gpa, VkPhysicalDevice phys, VkDevice device);
+extern bool VkSceneCanvas_initModule(VkInstance instance, PFN_vkGetInstanceProcAddr gpa, VkPhysicalDevice phys, VkDevice device);
+extern bool VkIOSurface_initModule(VkInstance instance, PFN_vkGetInstanceProcAddr gpa, VkPhysicalDevice phys, VkDevice device);
+extern bool Texture_initModule(void *instance, void *gpa, void *phys, void *device, void *queue, uint32_t queueFamily);
+extern bool SdfGpu_initModule(VkDevice device, VkPhysicalDevice phys, PFN_vkGetDeviceProcAddr gdpa, VkQueue queue, uint32_t queueFamily);
+extern void VkView_shutdown(void);
+extern void VkSceneCanvas_shutdownModule(void);
+extern void SdfGpu_shutdown(void);
+
+#define COMPOSITOR_LOAD_DEVICE(name) \
+    static PFN_vk##name name##_fn; \
+    if (!name##_fn) { \
+        name##_fn = (PFN_vk##name)Vk_getGdpa()(Vk_getDevice(), "vk" #name); \
+    }
+
+typedef struct IOSurfaceChild {
+    Panel *panel;
+    VkIOSurface *surf;
+    VkFramebuffer fb;
+    bool valid;
+} IOSurfaceChild;
+
+#define IOSURFACE_CHILD_MAX 16
+static IOSurfaceChild s_iosurfaceChildren[IOSURFACE_CHILD_MAX] = {0};
+static int s_iosurfaceChildCount = 0;
+
+static IOSurfaceChild *recordChildToIOSurface(VkCommandBuffer cb, Panel *child, void *surface, int w, int h) {
+    if (!child || !surface || w <= 0 || h <= 0) return nullptr;
+
+    if (!VkMac_ensureIOSurfacePass()) return nullptr;
+    VkRenderPass pass = VkMac_getIOSurfacePass();
+
+    VkDevice dev = Vk_getDevice();
+    COMPOSITOR_LOAD_DEVICE(CmdBeginRenderPass);
+    COMPOSITOR_LOAD_DEVICE(CmdEndRenderPass);
+    COMPOSITOR_LOAD_DEVICE(CmdSetViewport);
+    COMPOSITOR_LOAD_DEVICE(CmdSetScissor);
+    COMPOSITOR_LOAD_DEVICE(CmdBindPipeline);
+    COMPOSITOR_LOAD_DEVICE(CmdPushConstants);
+    COMPOSITOR_LOAD_DEVICE(CmdDraw);
+    COMPOSITOR_LOAD_DEVICE(DestroyFramebuffer);
+
+    int canvasW = (int) IOSurfaceGetWidth((IOSurfaceRef) surface);
+    int canvasH = (int) IOSurfaceGetHeight((IOSurfaceRef) surface);
+    if (canvasW <= 0 || canvasH <= 0)
+        return nullptr;
+
+    IOSurfaceChild *ioChild = nullptr;
+    for (int i = 0; i < s_iosurfaceChildCount; i++) {
+        if (s_iosurfaceChildren[i].panel == child) {
+            ioChild = &s_iosurfaceChildren[i];
+            break;
+        }
+    }
+    if (!ioChild) {
+        if (s_iosurfaceChildCount >= IOSURFACE_CHILD_MAX) return nullptr;
+        ioChild = &s_iosurfaceChildren[s_iosurfaceChildCount++];
+        (*ioChild).panel = child;
+        (*ioChild).surf = nullptr;
+        (*ioChild).fb = VK_NULL_HANDLE;
+        (*ioChild).valid = false;
+    }
+
+    if ((*ioChild).surf && (VkIOSurface_width((*ioChild).surf) != (uint32_t)canvasW ||
+                            VkIOSurface_height((*ioChild).surf) != (uint32_t)canvasH)) {
+        if ((*ioChild).fb) DestroyFramebuffer_fn(dev, (*ioChild).fb, nullptr);
+        VkIOSurface_free((*ioChild).surf);
+        (*ioChild).surf = nullptr;
+        (*ioChild).fb = VK_NULL_HANDLE;
+        (*ioChild).valid = false;
+    }
+
+    if (!(*ioChild).surf) {
+        (*ioChild).surf = VkIOSurface_wrap(surface, (uint32_t)canvasW, (uint32_t)canvasH);
+        if (!(*ioChild).surf) return nullptr;
+    }
+
+    if ((*ioChild).fb == VK_NULL_HANDLE) {
+        (*ioChild).fb = VkIOSurface_createFramebuffer((*ioChild).surf, pass);
+        if ((*ioChild).fb == VK_NULL_HANDLE) {
+            VkIOSurface_free((*ioChild).surf);
+            (*ioChild).surf = nullptr;
+            return nullptr;
+        }
+    }
+
+    uint32_t childType = Memory_type(child);
+    bool isScene = (childType == TYPE_SCENE3D_SINGLETON || childType == TYPE_SCENE2D_SINGLETON
+                    || childType == TYPE_SCENE_SINGLETON);
+
+    VkClearValue clear = {0};
+    VkRenderPassBeginInfo rpbi = {
+        .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+        .renderPass = pass,
+        .framebuffer = (*ioChild).fb,
+        .renderArea.extent = (VkExtent2D){ .width = (uint32_t)canvasW, .height = (uint32_t)canvasH },
+        .clearValueCount = 1,
+        .pClearValues = &clear,
+    };
+    CmdBeginRenderPass_fn(cb, &rpbi, VK_SUBPASS_CONTENTS_INLINE);
+
+    int renderW = w > canvasW ? canvasW : w;
+    int renderH = h > canvasH ? canvasH : h;
+    if (renderW <= 0) renderW = 1;
+    if (renderH <= 0) renderH = 1;
+
+    VkViewport vp = { .width = (float)renderW, .height = (float)renderH, .maxDepth = 1.0f };
+    VkRect2D sc = { .extent = (VkExtent2D){ .width = (uint32_t)renderW, .height = (uint32_t)renderH } };
+    CmdSetViewport_fn(cb, 0, 1, &vp);
+    CmdSetScissor_fn(cb, 0, 1, &sc);
+
+    if (isScene) {
+        float uTime = (float)((double)(NanoTime_now() - Vk_getAnimStartNanos()) / 1e9);
+        CmdBindPipeline_fn(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, Vk_getTriPipeline());
+        CmdPushConstants_fn(cb, Vk_getTriLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, 4, &uTime);
+        CmdDraw_fn(cb, 3, 1, 0, 0);
+    } else {
+        Panel_RenderFn handler = Panel_getRenderHandler(child);
+        if (handler) {
+            handler(child, nullptr, cb, 0.0f, 0.0f, (float)renderW, (float)renderH);
+        } else {
+            uint32_t color = Panel_getBackgroundColor(child);
+            if (color != 0) {
+                float r = (float)((color >> 16) & 0xFF) / 255.0f;
+                float g = (float)((color >> 8)  & 0xFF) / 255.0f;
+                float b = (float)( color        & 0xFF) / 255.0f;
+                float a = (float)((color >> 24) & 0xFF) / 255.0f;
+                Vk_fillRect(cb, (float)renderW, (float)renderH, 0.0f, 0.0f, (float)renderW, (float)renderH, r, g, b, a);
+            }
+        }
+    }
+
+    CmdEndRenderPass_fn(cb);
+    return ioChild;
+}
+
+static void renderNativeContent(Window *window, Panel *contentPanel, int winW, int winH, float kx, float ky) {
+    if (!window || !contentPanel) return;
+
+    Panel *scenePanel = Window_getScenePanel(window);
+    Window_resizePanelIOSurface(window, contentPanel, winW, winH);
+
+    size_t childCount = Panel_childCount(contentPanel);
+    if (childCount == 0) return;
+
+    VkDevice dev = Vk_getDevice();
+    VkQueue queue = Vk_getQueue();
+    VkCommandBuffer cb = Vk_getCmdBuffer();
+    COMPOSITOR_LOAD_DEVICE(ResetCommandBuffer);
+    COMPOSITOR_LOAD_DEVICE(BeginCommandBuffer);
+    COMPOSITOR_LOAD_DEVICE(EndCommandBuffer);
+    COMPOSITOR_LOAD_DEVICE(QueueSubmit);
+    COMPOSITOR_LOAD_DEVICE(WaitForFences);
+    COMPOSITOR_LOAD_DEVICE(ResetFences);
+    COMPOSITOR_LOAD_DEVICE(CreateFence);
+
+    ResetCommandBuffer_fn(cb, 0);
+    VkCommandBufferBeginInfo bi = { .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
+    BeginCommandBuffer_fn(cb, &bi);
+
+    IOSurfaceChild *recorded[IOSURFACE_CHILD_MAX];
+    int recordedCount = 0;
+
+    for (size_t i = 0; i < childCount; i++) {
+        Panel *child = Panel_getChild(contentPanel, i);
+        if (!child || child == scenePanel) continue;
+
+        extern void *PanelCocoa_fromPanel(void *panel);
+        void *pc = PanelCocoa_fromPanel(child);
+        if (!pc) continue;
+        extern void *PanelCocoa_surface(void *pc);
+        void *surface = PanelCocoa_surface(pc);
+        if (!surface) continue;
+
+        Vec4 rect;
+        Container_resolve(&(*child).base, 0.0f, 0.0f, (float)winW, (float)winH, &rect);
+        const int pxW = (int)(rect.z * kx + 0.5f);
+        const int pxH = (int)(rect.w * ky + 0.5f);
+        if (pxW <= 0 || pxH <= 0) continue;
+
+        IOSurfaceChild *ioChild = recordChildToIOSurface(cb, child, surface, pxW, pxH);
+        if (ioChild && recordedCount < IOSURFACE_CHILD_MAX) {
+            recorded[recordedCount++] = ioChild;
+        }
+    }
+
+    EndCommandBuffer_fn(cb);
+
+    if (recordedCount > 0) {
+        static VkFence s_batchFence = VK_NULL_HANDLE;
+        if (s_batchFence == VK_NULL_HANDLE) {
+            VkFenceCreateInfo fi = { .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
+            CreateFence_fn(dev, &fi, nullptr, &s_batchFence);
+        }
+
+        VkSubmitInfo si = {
+            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+            .commandBufferCount = 1,
+            .pCommandBuffers = &cb,
+        };
+
+        ResetFences_fn(dev, 1, &s_batchFence);
+        QueueSubmit_fn(queue, 1, &si, s_batchFence);
+        WaitForFences_fn(dev, 1, &s_batchFence, VK_TRUE, UINT64_MAX);
+
+        for (int i = 0; i < recordedCount; i++) {
+            VkIOSurface_export((*recorded[i]).surf);
+            (*recorded[i]).valid = true;
+        }
+    }
+}
+
+// // CORE FUNCTIONS
+
+void Darling_renderFrame(void *cmdBuffer, int drawW, int drawH, void *userdata) {
+    Window *window = (Window*) userdata;
+    if (!window || !cmdBuffer) return;
+
+    int winW = Window_width(window);
+    int winH = Window_height(window);
+    if (winW <= 0 || winH <= 0) return;
+
+    float kx = (float)drawW / (float)winW;
+    float ky = (float)drawH / (float)winH;
+
+    Panel *root = Window_getContainer(window);
+    Panel *contentPanel = Window_getContentPanel(window);
+    Panel *scenePanel = Window_getScenePanel(window);
+
+    bool nativeContent = false;
+    if (contentPanel) {
+        Container_setSize(&(*contentPanel).base, (float)winW, (float)winH);
+        if (Window_isNativeContainerOnRoot(window)) {
+            nativeContent = true;
+            renderNativeContent(window, contentPanel, winW, winH, kx, ky);
+            Window_compositeIOSurfaceChildren(window, contentPanel);
+        }
+    }
+
+    if (scenePanel) {
+        Container_setSize(&(*scenePanel).base, (float)winW, (float)winH);
+        uint32_t bgColor = Panel_getBackgroundColor(scenePanel);
+        if (bgColor != 0) {
+            float r = ((bgColor >> 16) & 0xFF) / 255.0f;
+            float g = ((bgColor >> 8) & 0xFF) / 255.0f;
+            float b = (bgColor & 0xFF) / 255.0f;
+            float a = ((bgColor >> 24) & 0xFF) / 255.0f;
+            Vk_setClearColor(r, g, b, a);
+        }
+    } else if (root && root != contentPanel) {
+        uint32_t bgColor = Panel_getBackgroundColor(root);
+        if (bgColor != 0) {
+            float r = ((bgColor >> 16) & 0xFF) / 255.0f;
+            float g = ((bgColor >> 8) & 0xFF) / 255.0f;
+            float b = (bgColor & 0xFF) / 255.0f;
+            float a = ((bgColor >> 24) & 0xFF) / 255.0f;
+            Vk_setClearColor(r, g, b, a);
+        }
+    }
+
+    if (root) {
+        size_t childCount = Panel_childCount(root);
+        for (size_t i = 0; i < childCount; i++) {
+            Panel *child = Panel_getChild(root, i);
+            if (!child) continue;
+
+            Vec4 rect;
+            Container_resolve(&(*child).base, 0.0f, 0.0f, (float)winW, (float)winH, &rect);
+            if (rect.z <= 0.0f || rect.w <= 0.0f) continue;
+
+            if (nativeContent) {
+                uint32_t cType = Memory_type(child);
+                if (cType != TYPE_SCENE3D_SINGLETON && cType != TYPE_SCENE2D_SINGLETON && cType != TYPE_SCENE_SINGLETON) {
+                    continue;
+                }
+            }
+
+            float px = rect.x * kx;
+            float py = rect.y * ky;
+            float pw = rect.z * kx;
+            float ph = rect.w * ky;
+            if (px < 0.0f) { pw += px; px = 0.0f; }
+            if (py < 0.0f) { ph += py; py = 0.0f; }
+            if (pw <= 0.0f || ph <= 0.0f) continue;
+            if (px + pw > (float)drawW) pw = (float)drawW - px;
+            if (py + ph > (float)drawH) ph = (float)drawH - py;
+            if (pw <= 0.0f || ph <= 0.0f) continue;
+
+            uint32_t childType = Memory_type(child);
+            if (childType == TYPE_SCENE3D_SINGLETON || childType == TYPE_SCENE2D_SINGLETON || childType == TYPE_SCENE_SINGLETON) {
+                continue;
+            }
+
+            Panel_RenderFn handler = Panel_getRenderHandler(child);
+            if (handler) {
+                handler(child, nullptr, cmdBuffer, px, py, pw, ph);
+            } else {
+                uint32_t color = Panel_getBackgroundColor(child);
+                if (color == 0) continue;
+                float r = ((color >> 16) & 0xFF) / 255.0f;
+                float g = ((color >> 8) & 0xFF) / 255.0f;
+                float b = (color & 0xFF) / 255.0f;
+                float a = ((color >> 24) & 0xFF) / 255.0f;
+                Vk_fillRect(cmdBuffer, (float)drawW, (float)drawH, px, py, pw, ph, r, g, b, a);
+            }
+        }
+    }
+}
+
+void Darling_initCompositor(Window *window) {
+    if (!window) return;
+
+    VkInstance inst = Vk_getInstance();
+    PFN_vkGetInstanceProcAddr gpa = Vk_getGpa();
+    VkPhysicalDevice phys = Vk_getPhys();
+    VkDevice dev = Vk_getDevice();
+    VkQueue queue = Vk_getQueue();
+    uint32_t qf = Vk_getQueueFamily();
+    PFN_vkGetDeviceProcAddr gdpa = Vk_getGdpa();
+
+    VkView_refreshAll(inst, gpa, phys, dev);
+    VkSceneCanvas_initModule(inst, gpa, phys, dev);
+    VkIOSurface_initModule(inst, gpa, phys, dev);
+    Texture_initModule(inst, (void*) gpa, phys, dev, queue, qf);
+    SdfGpu_initModule(dev, phys, gdpa, queue, qf);
+
+    Vk_setFrameRenderer(Darling_renderFrame, window);
+}
+
+void Darling_shutdownCompositor(void) {
+    SdfGpu_shutdown();
+    VkView_shutdown();
+    VkSceneCanvas_shutdownModule();
+    Vk_setFrameRenderer(nullptr, nullptr);
+}
