@@ -131,6 +131,10 @@ PanelCocoa *PanelCocoa_new(void *panel, int width, int height) {
     (*pc).layer.contentsGravity = kCAGravityTopLeft;
     (*pc).layer.geometryFlipped = YES; // Top-down coordinate space matching Vulkan
     (*pc).layer.contents = (__bridge id)(*pc).surface;
+    extern float TextCore_backingScale(void);
+    float scale = TextCore_backingScale();
+    if (scale <= 0.0f) scale = 1.0f;
+    (*pc).layer.contentsScale = (CGFloat) scale;
     (*pc).layer.opaque = NO;
     (*pc).layer.anchorPoint = CGPointMake(0, 0);
     (*pc).layer.drawsAsynchronously = NO;
