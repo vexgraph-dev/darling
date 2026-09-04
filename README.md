@@ -2,9 +2,11 @@
 
 A flexible, node-oriented UI C API — human to graphic interaction at hardware speed.
 
-`darling` is a retained-mode, off-heap UI toolkit engineered for high-performance interactive graphics. It rejects heavy polymorphic class hierarchies, DOM abstraction layers, and garbage-collected UI trees. 
+A play on the affectionate lineage of **Dear ImGui** and **LÖVE2D** — where *Dear ImGui* brought warmth and approachable intimacy to developer graphics and *LÖVE* made creative game scripting joyful, `darling` takes that same human intimacy and brings it down to bare-metal C23 as a **retained-mode, off-heap UI toolkit**.
 
-Instead, `darling` combines **self-describing C23 memory blocks** with a **hardware-native hybrid compositor**, allowing vector UI panels, rich text, and Vulkan 3D scenes to coexist on the exact same display surface with zero double-rendering overhead.
+While the low-level engine thrives on cold bit manipulation and atomic CAS, the UI is the one layer where human hands touch graphics. `darling` rejects heavy polymorphic class hierarchies, DOM abstraction layers, and garbage-collected UI trees.
+
+Instead, `darling` combines **self-describing C23 memory blocks** with a **hardware-native hybrid compositor**, allowing vector UI panels, rich text, and Vulkan 3D scenes to coexist on the exact same display surface with zero double-rendering overhead. It is a darling to write, a darling to read, and a darling to interact with.
 
 ---
 
