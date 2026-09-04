@@ -98,6 +98,7 @@ if(APPLE)
     )
 else()
     target_sources(darling PRIVATE text/text_core_stub.c)
+endif() # APPLE
 endif() # NOT TARGET darling
 
 if(NOT TARGET darling-ui)
