@@ -10,13 +10,15 @@
 struct Panel;
 uint32_t Panel_getBackgroundColor(const struct Panel *p);
 
-// Registry: maps Panel * → PanelCocoa *. Small fixed array — panel counts
-// are tiny (a handful per window). Linear scan on lookup.
-#define kMaxPanels 16
-static struct {
+// Registry: maps Panel * → PanelCocoa *. Dynamically sized array with linear scan on lookup.
+typedef struct {
     void *panel;        // Panel *
     PanelCocoa *pc;
-} s_registry[kMaxPanels] = {0};
+} PanelEntry;
+
+static PanelEntry *s_registry = nullptr;
+static size_t s_registryCount = 0;
+static size_t s_registryCapacity = 0;
 
 // objc/panel_cocoa.m — IOSurface-backed panel compositor.
 //
@@ -94,21 +96,39 @@ PanelCocoa *PanelCocoa_new(void *panel, int width, int height) {
     }
 
     (*pc).layer = [[CALayer alloc] init];
-    (*pc).layer.contentsGravity = kCAGravityResize;
-    (*pc).layer.geometryFlipped = NO; // Negative viewport in Vulkan correctly maps top-down to bottom-up framebuffers
+    (*pc).layer.contentsGravity = kCAGravityTopLeft;
+    (*pc).layer.geometryFlipped = YES; // Top-down coordinate space matching Vulkan
     (*pc).layer.contents = (__bridge id)(*pc).surface;
     (*pc).layer.opaque = NO;
     (*pc).layer.anchorPoint = CGPointMake(0, 0);
     (*pc).layer.drawsAsynchronously = NO;
     (*pc).layer.contentsRect = CGRectMake(0, 0, 1, 1); // show full surface
 
-    // Register in the lookup table
-    for (int i = 0; i < kMaxPanels; i++) {
+    // Register in dynamic lookup table
+    size_t slot = SIZE_MAX;
+    for (size_t i = 0; i < s_registryCount; i++) {
         if (s_registry[i].panel == nullptr) {
-            s_registry[i].panel = panel;
-            s_registry[i].pc = pc;
+            slot = i;
             break;
         }
+    }
+    if (slot == SIZE_MAX) {
+        if (s_registryCount >= s_registryCapacity) {
+            size_t newCap = s_registryCapacity == 0 ? 16 : s_registryCapacity * 2;
+            PanelEntry *newArr = (PanelEntry*) realloc(s_registry, newCap * sizeof(PanelEntry));
+            if (newArr) {
+                s_registry = newArr;
+                memset(s_registry + s_registryCapacity, 0, (newCap - s_registryCapacity) * sizeof(PanelEntry));
+                s_registryCapacity = newCap;
+            }
+        }
+        if (s_registryCount < s_registryCapacity) {
+            slot = s_registryCount++;
+        }
+    }
+    if (slot != SIZE_MAX) {
+        s_registry[slot].panel = panel;
+        s_registry[slot].pc = pc;
     }
 
     return pc;
@@ -116,12 +136,14 @@ PanelCocoa *PanelCocoa_new(void *panel, int width, int height) {
 
 void PanelCocoa_free(PanelCocoa *pc) {
     if (!pc) return;
-    // Unregister from lookup table
-    for (int i = 0; i < kMaxPanels; i++) {
-        if (s_registry[i].pc == pc) {
-            s_registry[i].panel = nullptr;
-            s_registry[i].pc = nullptr;
-            break;
+    // Unregister from dynamic lookup table
+    if (s_registry) {
+        for (size_t i = 0; i < s_registryCount; i++) {
+            if (s_registry[i].pc == pc) {
+                s_registry[i].panel = nullptr;
+                s_registry[i].pc = nullptr;
+                break;
+            }
         }
     }
     if ((*pc).layer) [(*pc).layer removeFromSuperlayer];
@@ -165,8 +187,8 @@ void PanelCocoa_markDirty(PanelCocoa *pc) {
 // Lookup: retrieve the PanelCocoa backing for a Panel. Returns nullptr if the
 // panel has no IOSurface backing. Used by the window bridge.
 void *PanelCocoa_fromPanel(void *panel) {
-    if (!panel) return nullptr;
-    for (int i = 0; i < kMaxPanels; i++) {
+    if (!panel || !s_registry) return nullptr;
+    for (size_t i = 0; i < s_registryCount; i++) {
         if (s_registry[i].panel == panel) return s_registry[i].pc;
     }
     return nullptr;
@@ -175,19 +197,51 @@ void *PanelCocoa_fromPanel(void *panel) {
 void PanelCocoa_setAnchors(PanelCocoa *pc, int parentAnchor, int selfAnchor) {
     if (!pc || !(*pc).layer) return;
 
-    // Port selfAnchor to CoreAnimation anchorPoint and contentsGravity
+    // Rule 13: Port selfAnchor to CoreAnimation anchorPoint and contentsGravity
     // (0,0) is top-left in flipped coordinates, (1,1) is bottom-right
     CGPoint anchorPoint = CGPointMake(0.0, 0.0);
+    CALayerContentsGravity gravity = kCAGravityTopLeft;
     switch (selfAnchor) {
-        case 1: anchorPoint = CGPointMake(0.5, 0.0); break; // TOP_CENTER
-        case 2: anchorPoint = CGPointMake(1.0, 0.0); break; // TOP_RIGHT
-        case 3: anchorPoint = CGPointMake(0.0, 0.5); break; // MIDDLE_LEFT
-        case 4: anchorPoint = CGPointMake(0.5, 0.5); break; // MIDDLE_CENTER
-        case 5: anchorPoint = CGPointMake(1.0, 0.5); break; // MIDDLE_RIGHT
-        case 6: anchorPoint = CGPointMake(0.0, 1.0); break; // BOTTOM_LEFT
-        case 7: anchorPoint = CGPointMake(0.5, 1.0); break; // BOTTOM_CENTER
-        case 8: anchorPoint = CGPointMake(1.0, 1.0); break; // BOTTOM_RIGHT
-        default: break; // TOP_LEFT
+        case 0:
+            anchorPoint = CGPointMake(0.0, 0.0);
+            gravity = kCAGravityTopLeft;
+            break;
+        case 1:
+            anchorPoint = CGPointMake(0.5, 0.0);
+            gravity = kCAGravityTop;
+            break;
+        case 2:
+            anchorPoint = CGPointMake(1.0, 0.0);
+            gravity = kCAGravityTopRight;
+            break;
+        case 3:
+            anchorPoint = CGPointMake(0.0, 0.5);
+            gravity = kCAGravityLeft;
+            break;
+        case 4:
+            anchorPoint = CGPointMake(0.5, 0.5);
+            gravity = kCAGravityCenter;
+            break;
+        case 5:
+            anchorPoint = CGPointMake(1.0, 0.5);
+            gravity = kCAGravityRight;
+            break;
+        case 6:
+            anchorPoint = CGPointMake(0.0, 1.0);
+            gravity = kCAGravityBottomLeft;
+            break;
+        case 7:
+            anchorPoint = CGPointMake(0.5, 1.0);
+            gravity = kCAGravityBottom;
+            break;
+        case 8:
+            anchorPoint = CGPointMake(1.0, 1.0);
+            gravity = kCAGravityBottomRight;
+            break;
+        default:
+            anchorPoint = CGPointMake(0.0, 0.0);
+            gravity = kCAGravityTopLeft;
+            break;
     }
 
     // Port parentAnchor to AppKit autoresizingMask
@@ -207,7 +261,7 @@ void PanelCocoa_setAnchors(PanelCocoa *pc, int parentAnchor, int selfAnchor) {
     }
 
     (*pc).layer.anchorPoint = anchorPoint;
-    (*pc).layer.contentsGravity = kCAGravityResize;
+    (*pc).layer.contentsGravity = gravity;
     (*pc).layer.autoresizingMask = mask;
 }
 
