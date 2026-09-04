@@ -10,6 +10,16 @@ if(APPLE)
     set(CMAKE_OBJC_STANDARD_REQUIRED ON)
 endif()
 
+# Release: dead-code stripping so unused symbols cost zero bytes in artifacts.
+# (Duplicated per repo for standalone builds; harmless when built in-tree.)
+if(APPLE)
+    add_compile_options($<$<CONFIG:Release>:-ffunction-sections> $<$<CONFIG:Release>:-fdata-sections>)
+    add_link_options($<$<CONFIG:Release>:-Wl,-dead_strip>)
+elseif(UNIX)
+    add_compile_options($<$<CONFIG:Release>:-ffunction-sections> $<$<CONFIG:Release>:-fdata-sections>)
+    add_link_options($<$<CONFIG:Release>:-Wl,--gc-sections>)
+endif()
+
 # Check upstream dependencies (if not already provided by parent build)
 if(NOT TARGET vexspoke OR NOT TARGET hotcwap)
     option(DARLING_USE_UPSTREAM "Depend on vexspoke + hotcwap via FetchContent" OFF)
