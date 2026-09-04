@@ -74,6 +74,9 @@ typedef struct IOSurfaceChild {
 #define IOSURFACE_CHILD_MAX 16
 static IOSurfaceChild s_iosurfaceChildren[IOSURFACE_CHILD_MAX] = {0};
 static int s_iosurfaceChildCount = 0;
+static VkCommandPool s_compositorCmdPool = VK_NULL_HANDLE;
+static VkCommandBuffer s_compositorCmdBuffer = VK_NULL_HANDLE;
+static VkFence s_batchFence = VK_NULL_HANDLE;
 
 static IOSurfaceChild *recordChildToIOSurface(VkCommandBuffer cb, Panel *child, void *surface, int w, int h) {
     if (!child || !surface || w <= 0 || h <= 0) return nullptr;
@@ -196,7 +199,9 @@ static void renderNativeContent(Window *window, Panel *contentPanel, int winW, i
 
     VkDevice dev = Vk_getDevice();
     VkQueue queue = Vk_getQueue();
-    VkCommandBuffer cb = Vk_getCmdBuffer();
+    VkCommandBuffer cb = s_compositorCmdBuffer;
+    if (cb == VK_NULL_HANDLE) return;
+
     COMPOSITOR_LOAD_DEVICE(ResetCommandBuffer);
     COMPOSITOR_LOAD_DEVICE(BeginCommandBuffer);
     COMPOSITOR_LOAD_DEVICE(EndCommandBuffer);
@@ -238,7 +243,6 @@ static void renderNativeContent(Window *window, Panel *contentPanel, int winW, i
     EndCommandBuffer_fn(cb);
 
     if (recordedCount > 0) {
-        static VkFence s_batchFence = VK_NULL_HANDLE;
         if (s_batchFence == VK_NULL_HANDLE) {
             VkFenceCreateInfo fi = { .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
             CreateFence_fn(dev, &fi, nullptr, &s_batchFence);
@@ -263,9 +267,9 @@ static void renderNativeContent(Window *window, Panel *contentPanel, int winW, i
 
 // // CORE FUNCTIONS
 
-void Darling_renderFrame(void *cmdBuffer, int drawW, int drawH, void *userdata) {
-    Window *window = (Window*) userdata;
-    if (!window || !cmdBuffer) return;
+void Darling_preFrame(Window *window, int drawW, int drawH, void *userdata) {
+    (void)userdata;
+    if (!window) return;
 
     int winW = Window_width(window);
     int winH = Window_height(window);
@@ -278,11 +282,9 @@ void Darling_renderFrame(void *cmdBuffer, int drawW, int drawH, void *userdata) 
     Panel *contentPanel = Window_getContentPanel(window);
     Panel *scenePanel = Window_getScenePanel(window);
 
-    bool nativeContent = false;
     if (contentPanel) {
         Container_setSize(&(*contentPanel).base, (float)winW, (float)winH);
         if (Window_isNativeContainerOnRoot(window)) {
-            nativeContent = true;
             renderNativeContent(window, contentPanel, winW, winH, kx, ky);
             Window_compositeIOSurfaceChildren(window, contentPanel);
         }
@@ -308,6 +310,21 @@ void Darling_renderFrame(void *cmdBuffer, int drawW, int drawH, void *userdata) 
             Vk_setClearColor(r, g, b, a);
         }
     }
+}
+
+void Darling_renderFrame(void *cmdBuffer, int drawW, int drawH, void *userdata) {
+    Window *window = (Window*) userdata;
+    if (!window || !cmdBuffer) return;
+
+    int winW = Window_width(window);
+    int winH = Window_height(window);
+    if (winW <= 0 || winH <= 0) return;
+
+    float kx = (float)drawW / (float)winW;
+    float ky = (float)drawH / (float)winH;
+
+    Panel *root = Window_getContainer(window);
+    bool nativeContent = Window_isNativeContainerOnRoot(window);
 
     if (root) {
         size_t childCount = Panel_childCount(root);
@@ -369,18 +386,77 @@ void Darling_initCompositor(Window *window) {
     uint32_t qf = Vk_getQueueFamily();
     PFN_vkGetDeviceProcAddr gdpa = Vk_getGdpa();
 
+    // Create dedicated command pool and command buffer for offscreen IOSurface rendering
+    if (s_compositorCmdPool == VK_NULL_HANDLE && dev != VK_NULL_HANDLE && gdpa) {
+        PFN_vkCreateCommandPool CreateCommandPool_fn = (PFN_vkCreateCommandPool)gdpa(dev, "vkCreateCommandPool");
+        PFN_vkAllocateCommandBuffers AllocateCommandBuffers_fn = (PFN_vkAllocateCommandBuffers)gdpa(dev, "vkAllocateCommandBuffers");
+
+        VkCommandPoolCreateInfo cpci = {
+            .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+            .queueFamilyIndex = qf,
+            .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+        };
+        if (CreateCommandPool_fn && CreateCommandPool_fn(dev, &cpci, nullptr, &s_compositorCmdPool) == VK_SUCCESS) {
+            VkCommandBufferAllocateInfo cbai = {
+                .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+                .commandPool = s_compositorCmdPool,
+                .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+                .commandBufferCount = 1,
+            };
+            if (AllocateCommandBuffers_fn) {
+                AllocateCommandBuffers_fn(dev, &cbai, &s_compositorCmdBuffer);
+            }
+        }
+    }
+
     VkView_refreshAll(inst, gpa, phys, dev);
     VkSceneCanvas_initModule(inst, gpa, phys, dev);
     VkIOSurface_initModule(inst, gpa, phys, dev);
     Texture_initModule(inst, (void*) gpa, phys, dev, queue, qf);
     SdfGpu_initModule(dev, phys, gdpa, queue, qf);
 
+    Vk_setPreFrameRenderer(Darling_preFrame, window);
     Vk_setFrameRenderer(Darling_renderFrame, window);
 }
 
 void Darling_shutdownCompositor(void) {
+    Vk_setPreFrameRenderer(nullptr, nullptr);
+    Vk_setFrameRenderer(nullptr, nullptr);
+
+    VkDevice dev = Vk_getDevice();
+    PFN_vkGetDeviceProcAddr gdpa = Vk_getGdpa();
+
+    if (dev != VK_NULL_HANDLE && gdpa) {
+        PFN_vkDestroyFramebuffer DestroyFramebuffer_fn = (PFN_vkDestroyFramebuffer)gdpa(dev, "vkDestroyFramebuffer");
+        for (int i = 0; i < s_iosurfaceChildCount; i++) {
+            if (s_iosurfaceChildren[i].fb != VK_NULL_HANDLE && DestroyFramebuffer_fn) {
+                DestroyFramebuffer_fn(dev, s_iosurfaceChildren[i].fb, nullptr);
+            }
+            if (s_iosurfaceChildren[i].surf) {
+                VkIOSurface_free(s_iosurfaceChildren[i].surf);
+            }
+            s_iosurfaceChildren[i].panel = nullptr;
+            s_iosurfaceChildren[i].surf = nullptr;
+            s_iosurfaceChildren[i].fb = VK_NULL_HANDLE;
+            s_iosurfaceChildren[i].valid = false;
+        }
+        s_iosurfaceChildCount = 0;
+
+        if (s_batchFence != VK_NULL_HANDLE) {
+            PFN_vkDestroyFence DestroyFence_fn = (PFN_vkDestroyFence)gdpa(dev, "vkDestroyFence");
+            if (DestroyFence_fn) DestroyFence_fn(dev, s_batchFence, nullptr);
+            s_batchFence = VK_NULL_HANDLE;
+        }
+
+        if (s_compositorCmdPool != VK_NULL_HANDLE) {
+            PFN_vkDestroyCommandPool DestroyCommandPool_fn = (PFN_vkDestroyCommandPool)gdpa(dev, "vkDestroyCommandPool");
+            if (DestroyCommandPool_fn) DestroyCommandPool_fn(dev, s_compositorCmdPool, nullptr);
+            s_compositorCmdPool = VK_NULL_HANDLE;
+            s_compositorCmdBuffer = VK_NULL_HANDLE;
+        }
+    }
+
     SdfGpu_shutdown();
     VkView_shutdown();
     VkSceneCanvas_shutdownModule();
-    Vk_setFrameRenderer(nullptr, nullptr);
 }

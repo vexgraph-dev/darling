@@ -17,6 +17,9 @@ void Darling_initCompositor(Window *window);
 // Shutdown compositor modules and unregister frame callbacks.
 void Darling_shutdownCompositor(void);
 
+// Pre-frame callback invoked before swapchain acquisition (runs offscreen IOSurface passes).
+void Darling_preFrame(Window *window, int drawW, int drawH, void *userdata);
+
 // Frame rendering callback invoked by Vk_clearPresent inside active swapchain pass.
 void Darling_renderFrame(void *cmdBuffer, int drawW, int drawH, void *userdata);
 
