@@ -384,7 +384,7 @@ bool Font_rasterCoverageWork(Font *font, uint32_t codepoint, FontCovWork *outWor
         return true; // empty (space): advance valid, no bitmap
     if (w > ATLAS_SIZE || h > ATLAS_SIZE)
         return false;
-    uint8_t *bmp = (uint8_t *)malloc((size_t)w * h);
+    uint8_t *bmp = (uint8_t*) malloc((size_t)w * h);
     if (!bmp)
         return false;
     stbtt_MakeCodepointBitmap(&(*font).info, bmp, w, h, w, refScale, refScale, (int)codepoint);
@@ -708,7 +708,7 @@ size_t Font_copyGlyphs(const Font *font, uint32_t *outCp,
         return 0;
     size_t total = 0;
     for (size_t i = 0; i < (*font).slotCap; i++) {
-        GlyphSlot *s = slotAt((Font*)font, i);
+        GlyphSlot *s = slotAt((Font*) font, i);
         if ((*s).state != GLYPH_STATE_OCCUPIED)
             continue;
         if (outCp && outMetrics && total < cap) {

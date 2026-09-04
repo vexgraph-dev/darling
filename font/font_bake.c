@@ -62,7 +62,7 @@ typedef struct BakeChunk {
 } BakeChunk;
 
 static void *bakeChunkMain(void *arg) {
-    BakeChunk *ch = (BakeChunk *)arg;
+    BakeChunk *ch = (BakeChunk*) arg;
     for (size_t i = (size_t)(*ch).worker; i < (*ch).count; i += (size_t)(*ch).workers) {
         FontSdfWork *w = &(*ch).works[i];
         memset(w, 0, sizeof(*w));
@@ -82,7 +82,7 @@ typedef struct CovChunk {
 } CovChunk;
 
 static void *covChunkMain(void *arg) {
-    CovChunk *ch = (CovChunk *)arg;
+    CovChunk *ch = (CovChunk*) arg;
     for (size_t i = (size_t)(*ch).worker; i < (*ch).count; i += (size_t)(*ch).workers) {
         FontCovWork *w = &(*ch).works[i];
         memset(w, 0, sizeof(*w));
@@ -106,13 +106,13 @@ static int bakeWorkerCount(size_t glyphs) {
 // Used headless and as the fallback when GPU bake fails.
 static void cpuBakeFlow(Font *font, const uint32_t *cov, size_t covCount,
                         const char *familyName) {
-    FontSdfWork *works = (FontSdfWork *)calloc(covCount, sizeof(FontSdfWork));
+    FontSdfWork *works = (FontSdfWork*) calloc(covCount, sizeof(FontSdfWork));
     if (!works)
         return;
     int workers = bakeWorkerCount(covCount);
     if (workers > 1) {
-        pthread_t *threads = (pthread_t *)malloc((size_t)workers * sizeof(pthread_t));
-        BakeChunk *chunks = (BakeChunk *)malloc((size_t)workers * sizeof(BakeChunk));
+        pthread_t *threads = (pthread_t*) malloc((size_t)workers * sizeof(pthread_t));
+        BakeChunk *chunks = (BakeChunk*) malloc((size_t)workers * sizeof(BakeChunk));
         if (threads && chunks) {
             int launched = 0;
             for (int wI = 0; wI < workers; wI++) {
@@ -215,7 +215,7 @@ static void gpuBuildFree(GpuBuild *b) {
 static bool gpuBuildAddPage(GpuBuild *b, uint8_t *sdf) {
     if ((*b).pageCount >= (*b).pageCap) {
         size_t next = (*b).pageCap == 0 ? 4 : (*b).pageCap * 2;
-        uint8_t **grown = (uint8_t **)realloc((*b).pageSdf, next * sizeof(uint8_t *));
+        uint8_t **grown = (uint8_t**) realloc((*b).pageSdf, next * sizeof(uint8_t*));
         if (!grown)
             return false;
         (*b).pageSdf = grown;
@@ -228,7 +228,7 @@ static bool gpuBuildAddPage(GpuBuild *b, uint8_t *sdf) {
 static bool gpuBuildAddEntry(GpuBuild *b, uint32_t cp, const GlyphMetrics *m) {
     if ((*b).entryCount >= (*b).entryCap) {
         size_t next = (*b).entryCap == 0 ? 1024 : (*b).entryCap * 2;
-        GpuEntry *grown = (GpuEntry *)realloc((*b).entries, next * sizeof(GpuEntry));
+        GpuEntry *grown = (GpuEntry*) realloc((*b).entries, next * sizeof(GpuEntry));
         if (!grown)
             return false;
         (*b).entries = grown;
@@ -288,7 +288,7 @@ static bool gpuBakeFinishedPage(Font *font, GpuPageBuild *pg, float refScale,
                                 const char *familyName, GpuBuild *build) {
     (void)font;
     int dim = SdfGpu_pageDim();
-    uint8_t *sdf = (uint8_t *)malloc((size_t)dim * dim);
+    uint8_t *sdf = (uint8_t*) malloc((size_t)dim * dim);
     if (!sdf)
         return false;
     if (!SdfGpu_bakePage((*pg).cov, dim, sdf)) {
@@ -335,13 +335,13 @@ static bool gpuBakeFlow(Font *font, const uint32_t *cov, size_t covCount,
     if (refScale <= 0.0f)
         return false;
 
-    FontCovWork *works = (FontCovWork *)calloc(covCount, sizeof(FontCovWork));
+    FontCovWork *works = (FontCovWork*) calloc(covCount, sizeof(FontCovWork));
     if (!works)
         return false;
     int workers = bakeWorkerCount(covCount);
     if (workers > 1) {
-        pthread_t *threads = (pthread_t *)malloc((size_t)workers * sizeof(pthread_t));
-        CovChunk *chunks = (CovChunk *)malloc((size_t)workers * sizeof(CovChunk));
+        pthread_t *threads = (pthread_t*) malloc((size_t)workers * sizeof(pthread_t));
+        CovChunk *chunks = (CovChunk*) malloc((size_t)workers * sizeof(CovChunk));
         if (threads && chunks) {
             int launched = 0;
             for (int wI = 0; wI < workers; wI++) {
@@ -405,7 +405,7 @@ static bool gpuBakeFlow(Font *font, const uint32_t *cov, size_t covCount,
                 capped = true;
                 break;
             }
-            page.cov = (uint8_t *)calloc(pageBytes, 1);
+            page.cov = (uint8_t*) calloc(pageBytes, 1);
             page.cells = NULL;
             page.cellCount = page.cellCap = 0;
             page.cursorX = page.cursorY = page.rowH = 0;
@@ -423,7 +423,7 @@ static bool gpuBakeFlow(Font *font, const uint32_t *cov, size_t covCount,
         }
         if (page.cellCount >= page.cellCap) {
             size_t next = page.cellCap == 0 ? 256 : page.cellCap * 2;
-            GpuCell *grown = (GpuCell *)realloc(page.cells, next * sizeof(GpuCell));
+            GpuCell *grown = (GpuCell*) realloc(page.cells, next * sizeof(GpuCell));
             if (!grown) {
                 Font_freeCovWork(w);
                 gpuPageFree(&page);
@@ -570,8 +570,8 @@ static bool writeBakedFile(const char *bakedPath, const char *familyName,
         return false;
     if (pageTotal == 0 || pageTotal > (size_t)FONT_PAGES_MAX)
         return false;
-    uint32_t *cps = (uint32_t *)malloc(glyphTotal * sizeof(uint32_t));
-    GlyphMetrics *ms = (GlyphMetrics *)malloc(glyphTotal * sizeof(GlyphMetrics));
+    uint32_t *cps = (uint32_t*) malloc(glyphTotal * sizeof(uint32_t));
+    GlyphMetrics *ms = (GlyphMetrics*) malloc(glyphTotal * sizeof(GlyphMetrics));
     if (!cps || !ms) {
         free(cps);
         free(ms);
@@ -581,7 +581,7 @@ static bool writeBakedFile(const char *bakedPath, const char *familyName,
 
     int dim = Font_atlasDim(font);
     size_t pageBytes = (size_t)dim * (size_t)dim;
-    uint8_t *mono = (uint8_t *)malloc(pageTotal * pageBytes);
+    uint8_t *mono = (uint8_t*) malloc(pageTotal * pageBytes);
     if (!mono) {
         free(cps);
         free(ms);
@@ -650,7 +650,7 @@ bool FontBake_bakeOne(const char *familyName) {
     //    probes are cheap; the SDF math below is what gets threaded).
     //    Surrogates skipped.
     size_t covCap = 4096, covCount = 0;
-    uint32_t *cov = (uint32_t *)malloc(covCap * sizeof(uint32_t));
+    uint32_t *cov = (uint32_t*) malloc(covCap * sizeof(uint32_t));
     if (!cov) {
         Font_free(font);
         return false;
@@ -662,7 +662,7 @@ bool FontBake_bakeOne(const char *familyName) {
             continue;
         if (covCount >= covCap) {
             size_t next = covCap * 2;
-            uint32_t *grown = (uint32_t *)realloc(cov, next * sizeof(uint32_t));
+            uint32_t *grown = (uint32_t*) realloc(cov, next * sizeof(uint32_t));
             if (!grown)
                 break;
             cov = grown;
@@ -741,10 +741,10 @@ Font *Font_openBaked(const char *familyName) {
         fclose(f);
         return NULL;
     }
-    uint32_t *cps = (uint32_t *)Memory_alloc(TYPE_ARRAY, glyphCount * sizeof(uint32_t));
-    GlyphMetrics *ms = (GlyphMetrics *)Memory_alloc(TYPE_ARRAY, glyphCount * sizeof(GlyphMetrics));
+    uint32_t *cps = (uint32_t*) Memory_alloc(TYPE_ARRAY, glyphCount * sizeof(uint32_t));
+    GlyphMetrics *ms = (GlyphMetrics*) Memory_alloc(TYPE_ARRAY, glyphCount * sizeof(GlyphMetrics));
     size_t pageBytes = (size_t)atlasDim * atlasDim;
-    uint8_t *mono = (uint8_t *)Memory_alloc(TYPE_ARRAY, (size_t)pageCount * pageBytes);
+    uint8_t *mono = (uint8_t*) Memory_alloc(TYPE_ARRAY, (size_t)pageCount * pageBytes);
     if (!cps || !ms || !mono) {
         if (cps) Memory_free(cps);
         if (ms) Memory_free(ms);
@@ -937,10 +937,10 @@ static int scanFontDir(const char *dir, char families[][BAKE_NAME_MAX],
         return count;
     struct dirent *ent;
     while ((ent = readdir(d)) != NULL && count < BAKE_ENUM_MAX) {
-        if (ent->d_name[0] == '.')
+        if ((*ent).d_name[0] == '.')
             continue;
         char full[BAKE_PATH_MAX];
-        snprintf(full, sizeof(full), "%s/%s", dir, ent->d_name);
+        snprintf(full, sizeof(full), "%s/%s", dir, (*ent).d_name);
         struct stat st;
         if (stat(full, &st) != 0)
             continue;
@@ -948,17 +948,17 @@ static int scanFontDir(const char *dir, char families[][BAKE_NAME_MAX],
             count = scanFontDir(full, families, paths, count);
             continue;
         }
-        const char *dot = strrchr(ent->d_name, '.');
+        const char *dot = strrchr((*ent).d_name, '.');
         if (!dot)
             continue;
         if (strcasecmp(dot, ".ttf") != 0 && strcasecmp(dot, ".otf") != 0 &&
             strcasecmp(dot, ".ttc") != 0)
             continue;
         char family[BAKE_NAME_MAX];
-        size_t baseLen = (size_t)(dot - ent->d_name);
+        size_t baseLen = (size_t)(dot - (*ent).d_name);
         if (baseLen >= sizeof(family))
             baseLen = sizeof(family) - 1;
-        memcpy(family, ent->d_name, baseLen);
+        memcpy(family, (*ent).d_name, baseLen);
         family[baseLen] = '\0';
         count = dedupeAdd(families, paths, count, family, full);
     }

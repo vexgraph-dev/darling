@@ -120,7 +120,7 @@ bool System_rasterColorGlyph(const char* familyName, uint32_t codepoint,
             return false;
         }
         size_t rowBytes = (size_t)w * 4;
-        uint8_t *raw = (uint8_t*)calloc((size_t)h, rowBytes);
+        uint8_t *raw = (uint8_t*) calloc((size_t)h, rowBytes);
         if (!raw) {
             if (base) CFRelease(base);
             if (emoji) CFRelease(emoji);
@@ -146,7 +146,7 @@ bool System_rasterColorGlyph(const char* familyName, uint32_t codepoint,
 
         // Flip to visual-top-first + unpremultiply to straight alpha (the
         // atlas contract the color fragment branch expects).
-        uint8_t *out = (uint8_t*)malloc((size_t)h * rowBytes);
+        uint8_t *out = (uint8_t*) malloc((size_t)h * rowBytes);
         if (!out) {
             free(raw);
             return false;
