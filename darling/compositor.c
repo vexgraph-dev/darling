@@ -263,7 +263,11 @@ static void renderNativeContent(Window *window, Panel *contentPanel, int winW, i
 
         ResetFences_fn(dev, 1, &s_batchFence);
         QueueSubmit_fn(queue, 1, &si, s_batchFence);
-        WaitForFences_fn(dev, 1, &s_batchFence, VK_TRUE, UINT64_MAX);
+        // Bounded wait: a dead drawable (fullscreen close) may never signal.
+        // Hanging here parks the worker and freezes teardown with a ghost
+        // window — drop the batch and keep old content instead.
+        if (WaitForFences_fn(dev, 1, &s_batchFence, VK_TRUE, 100000000ULL) != VK_SUCCESS)
+            return;
 
         for (int i = 0; i < recordedCount; i++) {
             VkIOSurface_export((*recorded[i]).surf);
