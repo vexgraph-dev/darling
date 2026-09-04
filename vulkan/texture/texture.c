@@ -162,9 +162,15 @@ int32_t Texture_load(const char *vfsPath) {
         return -1;
     }
 
-    FILE *f = fopen(vfsPath, "rb");
+    char resolvedPath[1024];
+    const char *actualPath = vfsPath;
+    if (Vfs_resolve(vfsPath, resolvedPath, sizeof(resolvedPath))) {
+        actualPath = resolvedPath;
+    }
+
+    FILE *f = fopen(actualPath, "rb");
     if (!f) {
-        printf("Failed to read texture file: %s\n", vfsPath);
+        printf("Failed to read texture file: %s (resolved: %s)\n", vfsPath, actualPath);
         return -1;
     }
     fseek(f, 0, SEEK_END);
