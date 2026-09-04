@@ -362,21 +362,47 @@ void Darling_renderFrame(void *cmdBuffer, int drawW, int drawH, void *userdata) 
             if (pw <= 0.0f || ph <= 0.0f) continue;
 
             uint32_t childType = Memory_type(child);
-            if (childType == TYPE_SCENE3D_SINGLETON || childType == TYPE_SCENE2D_SINGLETON || childType == TYPE_SCENE_SINGLETON) {
-                continue;
-            }
+            bool isScene = (childType == TYPE_SCENE3D_SINGLETON || childType == TYPE_SCENE2D_SINGLETON
+                            || childType == TYPE_SCENE_SINGLETON);
+            if (isScene) {
+                Panel_RenderFn handler = Panel_getRenderHandler(child);
+                if (handler) {
+                    handler(child, nullptr, cmdBuffer, px, py, pw, ph);
+                } else {
+                    COMPOSITOR_LOAD_DEVICE(CmdSetViewport);
+                    COMPOSITOR_LOAD_DEVICE(CmdSetScissor);
+                    COMPOSITOR_LOAD_DEVICE(CmdBindPipeline);
+                    COMPOSITOR_LOAD_DEVICE(CmdPushConstants);
+                    COMPOSITOR_LOAD_DEVICE(CmdDraw);
 
-            Panel_RenderFn handler = Panel_getRenderHandler(child);
-            if (handler) {
-                handler(child, nullptr, cmdBuffer, px, py, pw, ph);
+                    float uTime = (float)((double)(NanoTime_now() - Vk_getAnimStartNanos()) / 1e9);
+                    CmdBindPipeline_fn((VkCommandBuffer) cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, Vk_getTriPipeline());
+                    CmdPushConstants_fn((VkCommandBuffer) cmdBuffer, Vk_getTriLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, 4, &uTime);
+                    VkViewport vp = { .x = px, .y = py, .width = pw, .height = ph, .minDepth = 0.0f, .maxDepth = 1.0f };
+                    VkRect2D sc = { .offset = { (int32_t)px, (int32_t)py }, .extent = { (uint32_t)pw, (uint32_t)ph } };
+                    CmdSetViewport_fn((VkCommandBuffer) cmdBuffer, 0, 1, &vp);
+                    CmdSetScissor_fn((VkCommandBuffer) cmdBuffer, 0, 1, &sc);
+                    CmdDraw_fn((VkCommandBuffer) cmdBuffer, 3, 1, 0, 0);
+
+                    VkViewport defaultVp = { .x = 0.0f, .y = 0.0f, .width = (float)drawW, .height = (float)drawH, .minDepth = 0.0f, .maxDepth = 1.0f };
+                    VkRect2D defaultSc = { .offset = { 0, 0 }, .extent = { (uint32_t)drawW, (uint32_t)drawH } };
+                    CmdSetViewport_fn((VkCommandBuffer) cmdBuffer, 0, 1, &defaultVp);
+                    CmdSetScissor_fn((VkCommandBuffer) cmdBuffer, 0, 1, &defaultSc);
+                }
             } else {
-                uint32_t color = Panel_getBackgroundColor(child);
-                if (color == 0) continue;
-                float r = ((color >> 16) & 0xFF) / 255.0f;
-                float g = ((color >> 8) & 0xFF) / 255.0f;
-                float b = (color & 0xFF) / 255.0f;
-                float a = ((color >> 24) & 0xFF) / 255.0f;
-                Vk_fillRect(cmdBuffer, (float)drawW, (float)drawH, px, py, pw, ph, r, g, b, a);
+                Panel_RenderFn handler = Panel_getRenderHandler(child);
+                if (handler) {
+                    handler(child, nullptr, cmdBuffer, px, py, pw, ph);
+                } else {
+                    uint32_t color = Panel_getBackgroundColor(child);
+                    if (color != 0) {
+                        float r = ((color >> 16) & 0xFF) / 255.0f;
+                        float g = ((color >> 8) & 0xFF) / 255.0f;
+                        float b = (color & 0xFF) / 255.0f;
+                        float a = ((color >> 24) & 0xFF) / 255.0f;
+                        Vk_fillRect(cmdBuffer, (float)drawW, (float)drawH, px, py, pw, ph, r, g, b, a);
+                    }
+                }
             }
         }
     }

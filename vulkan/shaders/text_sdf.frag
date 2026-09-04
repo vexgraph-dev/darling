@@ -14,13 +14,16 @@ layout(push_constant) uniform Push {
 
 layout(set = 0, binding = 0) uniform sampler2D u_textures[];
 
+const float MODE_SHADOW_SENTINEL = -0.1;
+const float MODE_COLOR_GLYPH_SENTINEL = 0.0;
+
 void main() {
     vec4 texColor = texture(u_textures[nonuniformEXT(push.u_textureId)], v_uv);
     float dist = texColor.r;
 
     // A negative u_bold (-0.5) is our secret signal from rich_text.c that this is a shadow quad.
     // Instead of drawing a sharp edge, we want a soft gradient bloom.
-    if (push.u_bold < -0.1) {
+    if (push.u_bold < MODE_SHADOW_SENTINEL) {
         float shadowAlpha = smoothstep(0.1, 0.6, dist); 
         fragColor = vec4(push.u_color.rgb, push.u_color.a * shadowAlpha);
         return;
@@ -29,7 +32,7 @@ void main() {
     // A negative u_smoothness (-1.0) is the signal from Vk_drawColorGlyph that
     // this is a color glyph (baked/runtime emoji): raw RGBA, no SDF math.
     // Atlas stores straight (unpremultiplied) alpha, label alpha applies.
-    if (push.u_smoothness < 0.0) {
+    if (push.u_smoothness < MODE_COLOR_GLYPH_SENTINEL) {
         vec4 texColor = texture(u_textures[nonuniformEXT(push.u_textureId)], v_uv);
         fragColor = vec4(texColor.rgb, texColor.a * push.u_color.a);
         return;

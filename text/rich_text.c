@@ -53,8 +53,10 @@ void RichText_free(RichText *rt) {
 void RichText_setStyle(RichText *rt, int id, Font *font, float size, uint32_t color, bool bold, TextDecoration decor) {
     if (!rt || id < 0) return;
     if ((size_t)id >= (*rt).styleCapacity) {
-        size_t newCap = id + 16;
-        (*rt).styles = Memory_realloc((*rt).styles, newCap * sizeof(TextStyle));
+        size_t newCap = (size_t)id + 16;
+        TextStyle *newStyles = (TextStyle*) Memory_realloc((*rt).styles, newCap * sizeof(TextStyle));
+        if (!newStyles) return;
+        (*rt).styles = newStyles;
         memset((*rt).styles + (*rt).styleCapacity, 0, (newCap - (*rt).styleCapacity) * sizeof(TextStyle));
         (*rt).styleCapacity = newCap;
     }
@@ -107,8 +109,11 @@ static void mergeStyle(TextStyle *target, const TextStyle *layer) {
 // Push a run into the array
 static void pushRun(RichText *rt, RunType type, int start, int len, TextStyle style, TextAlign align) {
     if ((*rt).runCount >= (*rt).runCapacity) {
-        (*rt).runCapacity = (*rt).runCapacity == 0 ? 16 : (*rt).runCapacity * 2;
-        (*rt).runs = Memory_realloc((*rt).runs, (*rt).runCapacity * sizeof(TextRun));
+        size_t newCap = (*rt).runCapacity == 0 ? 16 : (*rt).runCapacity * 2;
+        TextRun *newRuns = (TextRun*) Memory_realloc((*rt).runs, newCap * sizeof(TextRun));
+        if (!newRuns) return;
+        (*rt).runs = newRuns;
+        (*rt).runCapacity = newCap;
     }
     (*rt).runs[(*rt).runCount].type = type;
     (*rt).runs[(*rt).runCount].startChar = start;
@@ -116,6 +121,17 @@ static void pushRun(RichText *rt, RunType type, int start, int len, TextStyle st
     (*rt).runs[(*rt).runCount].computedStyle = style;
     (*rt).runs[(*rt).runCount].align = align;
     (*rt).runCount++;
+}
+
+static bool ensureQuadsCapacity(RichText *rt) {
+    if ((*rt).quadCount >= (*rt).quadCapacity) {
+        size_t newCap = (*rt).quadCapacity == 0 ? 64 : (*rt).quadCapacity * 2;
+        TextQuad *newQuads = (TextQuad*) Memory_realloc((*rt).quads, newCap * sizeof(TextQuad));
+        if (!newQuads) return false;
+        (*rt).quads = newQuads;
+        (*rt).quadCapacity = newCap;
+    }
+    return true;
 }
 
 void RichText_setString(RichText *rt, const char *str) {
@@ -310,16 +326,8 @@ void RichText_layout(RichText *rt, float maxWidth) {
                     }
                 }
                 
-                if ((*rt).quadCount >= (*rt).quadCapacity) {
-                    (*rt).quadCapacity = (*rt).quadCapacity == 0 ? 64 : (*rt).quadCapacity * 2;
-                    (*rt).quads = Memory_realloc((*rt).quads, (*rt).quadCapacity * sizeof(TextQuad));
-                }
-                
                 if (style.hasShadow) {
-                    if ((*rt).quadCount >= (*rt).quadCapacity) {
-                        (*rt).quadCapacity = (*rt).quadCapacity == 0 ? 64 : (*rt).quadCapacity * 2;
-                        (*rt).quads = Memory_realloc((*rt).quads, (*rt).quadCapacity * sizeof(TextQuad));
-                    }
+                    if (!ensureQuadsCapacity(rt)) break;
                     TextQuad *sq = &(*rt).quads[(*rt).quadCount++];
                     (*sq).x = cursorX + gm.xOffset + style.shadowX;
                     (*sq).y = cursorY + runAscent + gm.yOffset + style.shadowY;
@@ -334,10 +342,7 @@ void RichText_layout(RichText *rt, float maxWidth) {
                     (*sq).decor = DECOR_NONE;
                 }
                 
-                if ((*rt).quadCount >= (*rt).quadCapacity) {
-                    (*rt).quadCapacity = (*rt).quadCapacity == 0 ? 64 : (*rt).quadCapacity * 2;
-                    (*rt).quads = Memory_realloc((*rt).quads, (*rt).quadCapacity * sizeof(TextQuad));
-                }
+                if (!ensureQuadsCapacity(rt)) break;
                 TextQuad *q = &(*rt).quads[(*rt).quadCount++];
                 (*q).x = cursorX + gm.xOffset;
                 (*q).y = cursorY + runAscent + gm.yOffset;
@@ -363,10 +368,7 @@ void RichText_layout(RichText *rt, float maxWidth) {
             float decorH = style.size * 0.08f;
             if (decorH < 1.0f) decorH = 1.0f;
             
-            if ((*rt).quadCount >= (*rt).quadCapacity) {
-                (*rt).quadCapacity = (*rt).quadCapacity == 0 ? 64 : (*rt).quadCapacity * 2;
-                (*rt).quads = Memory_realloc((*rt).quads, (*rt).quadCapacity * sizeof(TextQuad));
-            }
+            if (!ensureQuadsCapacity(rt)) break;
             TextQuad *q = &(*rt).quads[(*rt).quadCount++];
             (*q).x = runStartX; (*q).y = decorY; (*q).w = cursorX - runStartX; (*q).h = decorH;
             (*q).color = style.decorColor;
