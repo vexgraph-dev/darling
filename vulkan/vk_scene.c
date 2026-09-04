@@ -521,8 +521,10 @@ bool VkSceneCanvas_beginBackPass(VkSceneCanvas *canvas, VkCommandBuffer cb,
     VkRenderPassBeginInfo rbi = { .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
     rbi.renderPass = (*canvas).pass;
     rbi.framebuffer = (*canvas).fb[back];
-    rbi.renderArea.extent.width = (*canvas).width;
-    rbi.renderArea.extent.height = (*canvas).height;
+    rbi.renderArea.extent = (VkExtent2D){
+        .width = (*canvas).width,
+        .height = (*canvas).height
+    };
     rbi.clearValueCount = 1;
     rbi.pClearValues = &clear;
     CmdBeginRenderPass_fn(cb, &rbi, VK_SUBPASS_CONTENTS_INLINE);

@@ -365,8 +365,10 @@ bool VkView_beginPass(VkView *view, VkCommandBuffer cb,
     VkRenderPassBeginInfo rbi = { .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
     rbi.renderPass = (*view).pass;
     rbi.framebuffer = (*view).fb;
-    rbi.renderArea.extent.width = (uint32_t)(*view).cacheW;
-    rbi.renderArea.extent.height = (uint32_t)(*view).cacheH;
+    rbi.renderArea.extent = (VkExtent2D){
+        .width = (uint32_t)(*view).cacheW,
+        .height = (uint32_t)(*view).cacheH
+    };
     rbi.clearValueCount = 1;
     rbi.pClearValues = &clear;
     CmdBeginRenderPass_fn(cb, &rbi, VK_SUBPASS_CONTENTS_INLINE);
