@@ -127,10 +127,13 @@ void Canvas_resolveRoot(const Canvas *c, void *node, float fbW, float fbH, Vec4 
     }
 
     uint32_t classId = Type_class(Memory_type(node));
-    if (classId == ID_PICTURE)
-        Container_resolve(&(*((Picture*) node)).base.base, 0.0f, 0.0f, cw, ch, outRect);
-    else
+    if (classId == ID_PICTURE) {
+        Picture *pic = (Picture*) node;
+        Panel *panel = &(*pic).base;
+        Container_resolve(&(*panel).base, 0.0f, 0.0f, cw, ch, outRect);
+    } else {
         Container_resolve((Container*) node, 0.0f, 0.0f, cw, ch, outRect);
+    }
 }
 
 bool Canvas_windowToCanvas(const Canvas *c, float winX, float winY,

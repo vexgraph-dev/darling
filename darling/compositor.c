@@ -70,7 +70,7 @@ typedef struct IOSurfaceChild {
     bool valid;
 } IOSurfaceChild;
 
-#define IOSURFACE_CHILD_MAX 16
+#define IOSURFACE_CHILD_MAX 64
 static IOSurfaceChild s_iosurfaceChildren[IOSURFACE_CHILD_MAX] = {0};
 static int s_iosurfaceChildCount = 0;
 static VkCommandPool s_compositorCmdPool = VK_NULL_HANDLE;
@@ -106,7 +106,11 @@ static IOSurfaceChild *recordChildToIOSurface(VkCommandBuffer cb, Panel *child, 
         }
     }
     if (!ioChild) {
-        if (s_iosurfaceChildCount >= IOSURFACE_CHILD_MAX) return nullptr;
+        if (s_iosurfaceChildCount >= IOSURFACE_CHILD_MAX) {
+            fprintf(stderr, "[compositor] WARNING: IOSURFACE_CHILD_MAX (%d) exceeded, dropping panel %p\n",
+                    IOSURFACE_CHILD_MAX, (void*) child);
+            return nullptr;
+        }
         ioChild = &s_iosurfaceChildren[s_iosurfaceChildCount++];
         (*ioChild).panel = child;
         (*ioChild).surf = nullptr;
@@ -234,8 +238,12 @@ static void renderNativeContent(Window *window, Panel *contentPanel, int winW, i
         if (pxW <= 0 || pxH <= 0) continue;
 
         IOSurfaceChild *ioChild = recordChildToIOSurface(cb, child, surface, pxW, pxH);
-        if (ioChild && recordedCount < IOSURFACE_CHILD_MAX) {
-            recorded[recordedCount++] = ioChild;
+        if (ioChild) {
+            if (recordedCount < IOSURFACE_CHILD_MAX) {
+                recorded[recordedCount++] = ioChild;
+            } else {
+                fprintf(stderr, "[compositor] WARNING: recordedCount exceeded IOSURFACE_CHILD_MAX (%d)\n", IOSURFACE_CHILD_MAX);
+            }
         }
     }
 
