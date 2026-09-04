@@ -28,7 +28,7 @@ typedef struct Picture {
 Picture *Picture_0(void);
 Picture *Picture_1(void *image);
 
-#define Picture(...) CONSTRUCTOR_DISPATCH(Picture, ##__VA_ARGS__)
+#define Picture(...) CONSTRUCTOR_DISPATCH(Picture, __VA_ARGS__)
 
 void *Picture_getImage(const Picture *p);
 void Picture_setImage(Picture *p, void *image);

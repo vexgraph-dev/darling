@@ -38,7 +38,7 @@ Scene *Scene_0(void);
 Scene *Scene_2(float width, float height);
 Scene *Scene_3(float width, float height, int mode);
 
-#define Scene(...) CONSTRUCTOR_DISPATCH(Scene, ##__VA_ARGS__)
+#define Scene(...) CONSTRUCTOR_DISPATCH(Scene, __VA_ARGS__)
 
 Scene2D *Scene2D_0(void);
 Scene3D *Scene3D_0(void);

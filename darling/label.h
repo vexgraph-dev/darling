@@ -29,7 +29,7 @@ Label *Label_1(const char *text);
 Label *Label_2(Panel *parent, const char *text);
 Label *Label_1_parent(Panel *parent);
 
-#define Label(...) CONSTRUCTOR_DISPATCH(Label, ##__VA_ARGS__)
+#define Label(...) CONSTRUCTOR_DISPATCH(Label, __VA_ARGS__)
 
 void Label_setText(Label *label, const char *text);
 void Label_setFont(Label *label, Font *font);

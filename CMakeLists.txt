@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 4.3)
+cmake_minimum_required(VERSION 3.28)
 project(darling C)
 
 set(CMAKE_C_STANDARD 23)
@@ -33,6 +33,7 @@ if(NOT TARGET vexspoke OR NOT TARGET hotcwap)
     endif()
 endif()
 
+if(NOT TARGET darling)
 add_library(darling STATIC
     darling/canvas.c
     darling/compositor.c
@@ -61,7 +62,10 @@ add_library(darling STATIC
 target_include_directories(darling PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_options(darling PRIVATE -Wall -Wextra -Werror -mcpu=native)
 
-if(EXISTS "/opt/homebrew/include/vulkan/vulkan.h")
+find_package(Vulkan QUIET)
+if(Vulkan_FOUND)
+    target_include_directories(darling PUBLIC ${Vulkan_INCLUDE_DIRS})
+elseif(EXISTS "/opt/homebrew/include/vulkan/vulkan.h")
     target_include_directories(darling PUBLIC /opt/homebrew/include)
 endif()
 
@@ -95,3 +99,4 @@ if(APPLE)
 else()
     target_sources(darling PRIVATE text/text_core_stub.c)
 endif()
+endif() # NOT TARGET darling

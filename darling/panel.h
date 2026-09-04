@@ -50,7 +50,7 @@ typedef struct Panel {
 Panel *Panel_0(void);
 Panel *Panel_1(Panel *parent);
 
-#define Panel(...) CONSTRUCTOR_DISPATCH(Panel, ##__VA_ARGS__)
+#define Panel(...) CONSTRUCTOR_DISPATCH(Panel, __VA_ARGS__)
 
 // Background color (0xAARRGGBB).
 uint32_t Panel_getBackgroundColor(const Panel *p);
