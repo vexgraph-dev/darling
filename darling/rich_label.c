@@ -8,6 +8,7 @@
 /**
  * ============================================================================
  * MODULE: Rich_label (darling/rich_label.c)
+ * LEVEL: L2 — Behavior (rich text UI view behavior API)
  * ============================================================================
  * Core subsystem implementation for Rich_label.
  *

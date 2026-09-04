@@ -9,6 +9,7 @@
 /**
  * ============================================================================
  * MODULE: Font_cocoa (objc/font_cocoa.m)
+ * LEVEL: L4 — Self-Management (OS CoreText/AppKit font shim)
  * ============================================================================
  * alpha RGBA8 through the OS text stack,
  *

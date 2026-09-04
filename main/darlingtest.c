@@ -57,6 +57,7 @@ static DarlingDemo g_demo = {0};
 /**
  * ============================================================================
  * MODULE: DarlingDemo (main/darlingtest.c — darling-tree live demo)
+ * LEVEL: L3 — Module Code (live demo harness business logic)
  * ============================================================================
  * Two-thread decoupled painter: a draw worker paints sky/triangle/UI scenes
  * into offscreen double-buffered Surfaces at unthrottled speed while Thread 0

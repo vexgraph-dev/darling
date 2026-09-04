@@ -21,6 +21,7 @@
 /**
  * ============================================================================
  * MODULE: Fontbake (main/fontbake.c)
+ * LEVEL: L3 — Module Code (headless bake CLI main harness)
  * ============================================================================
  * headless baked-font installer CLI.
  *

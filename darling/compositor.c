@@ -23,6 +23,7 @@
 /**
  * ============================================================================
  * CLASS: Compositor
+ * LEVEL: L2 — Behavior (retained-mode UI compositing behavior API)
  * ============================================================================
  * Retained-mode UI compositor connecting Darling UI nodes, IOSurface overlays,
  * and Vulkan scene viewports into the host window and presentation loop.

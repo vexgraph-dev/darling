@@ -16,6 +16,7 @@
 /**
  * ============================================================================
  * MODULE: Text_core (objc/text_core.m)
+ * LEVEL: L4 — Self-Management (OS CoreText line raster shim)
  * ============================================================================
  * native line raster seam.
  *

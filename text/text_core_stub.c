@@ -10,6 +10,7 @@
 /**
  * ============================================================================
  * MODULE: Text_core_stub (text/text_core_stub.c)
+ * LEVEL: L2 — Behavior (portable text fallback behavior API)
  * ============================================================================
  * non-Apple fallback. No native raster here;
  *

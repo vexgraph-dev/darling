@@ -10,6 +10,7 @@
 /**
  * ============================================================================
  * MODULE: Panel_cocoa (objc/panel_cocoa.m)
+ * LEVEL: L4 — Self-Management (OS IOSurface/CALayer panel shim)
  * ============================================================================
  * IOSurface-backed panel compositor.
  *

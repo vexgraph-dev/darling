@@ -9,6 +9,7 @@
 /**
  * ============================================================================
  * MODULE: Panel (darling/panel.c)
+ * LEVEL: L2 — Behavior (UI panel hierarchy behavior API)
  * ============================================================================
  * the UI panel: Container layout + background color +
  *

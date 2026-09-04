@@ -21,6 +21,7 @@
 /**
  * ============================================================================
  * MODULE: Font_bake (font/font_bake.c)
+ * LEVEL: L3 — Module Code (install-time bake business logic)
  * ============================================================================
  * baked font store (install-time SDF atlas + dictionary).
  *

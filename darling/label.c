@@ -14,6 +14,7 @@
 /**
  * ============================================================================
  * CLASS: Label (inherits Panel -> Container)
+ * LEVEL: L2 — Behavior (UI text view behavior API)
  * ============================================================================
  * Lightweight retained-mode UI text view for sharp, single-styled typography.
  * Implements a dual-path rendering strategy:

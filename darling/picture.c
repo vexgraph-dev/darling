@@ -7,6 +7,7 @@
 /**
  * ============================================================================
  * CLASS: Picture (inherits Panel -> Container)
+ * LEVEL: L2 — Behavior (UI picture node behavior API)
  * ============================================================================
  * Retained-mode off-heap picture node that hosts an Image asset with optional
  * UV cropping, dimension overrides, and hierarchical layout anchoring.

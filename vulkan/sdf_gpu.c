@@ -12,6 +12,7 @@
 /**
  * ============================================================================
  * MODULE: Sdf_gpu (vulkan/sdf_gpu.c)
+ * LEVEL: L4 — Self-Management (Vulkan GPU SDF baker setup)
  * ============================================================================
  * GPU jump-flood SDF baker for font atlases.
  *

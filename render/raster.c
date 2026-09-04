@@ -7,6 +7,7 @@
 /**
  * ============================================================================
  * MODULE: Raster (render/raster.c)
+ * LEVEL: L2 — Behavior (software rasterizer behavior API)
  * ============================================================================
  * the software rasterizer (pixels before Vulkan).
  *

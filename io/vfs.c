@@ -11,6 +11,7 @@
 /**
  * ============================================================================
  * MODULE: Vfs (io/vfs.c)
+ * LEVEL: L2 — Behavior (virtual filesystem behavior API)
  * ============================================================================
  * Virtual File System for the Anti Engine Hub
  *

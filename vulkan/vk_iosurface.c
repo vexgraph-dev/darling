@@ -13,6 +13,7 @@
 /**
  * ============================================================================
  * MODULE: Vk_iosurface (vulkan/vk_iosurface.c)
+ * LEVEL: L4 — Self-Management (Vulkan/IOSurface GPU interop setup)
  * ============================================================================
  * same GPU memory.
  *

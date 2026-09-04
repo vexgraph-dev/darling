@@ -11,6 +11,7 @@
 /**
  * ============================================================================
  * MODULE: Vk_view (vulkan/vk_view.c)
+ * LEVEL: L4 — Self-Management (Vulkan per-monitor view GPU setup)
  * ============================================================================
  * the per-monitor render cache (the compositor view).
  *

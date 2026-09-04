@@ -9,6 +9,7 @@
 /**
  * ============================================================================
  * MODULE: Canvas (darling/canvas.c)
+ * LEVEL: L2 — Behavior (UI layout/projection behavior API)
  * ============================================================================
  * the flat 2D layout root (Legacy: darling/Canvas.java).
  *

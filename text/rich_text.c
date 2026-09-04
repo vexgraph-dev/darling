@@ -10,6 +10,7 @@
 /**
  * ============================================================================
  * MODULE: Rich_text (text/rich_text.c)
+ * LEVEL: L2 — Behavior (rich text layout behavior API)
  * ============================================================================
  * Core subsystem implementation for Rich_text.
  *

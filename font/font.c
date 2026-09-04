@@ -14,6 +14,7 @@
 /**
  * ============================================================================
  * MODULE: Font (font/font.c)
+ * LEVEL: L2 — Behavior (font atlas/glyph behavior API)
  * ============================================================================
  * page atlas: big coverages (CJK-scale fonts) spill past one 2048^2
  *

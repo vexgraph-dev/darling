@@ -7,6 +7,7 @@
 /**
  * ============================================================================
  * MODULE: Bake (io/bake.c)
+ * LEVEL: L3 — Module Code (offline asset bake tool)
  * ============================================================================
  * Offline asset compilation pipeline
  *

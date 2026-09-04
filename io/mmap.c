@@ -9,6 +9,7 @@
 /**
  * ============================================================================
  * MODULE: Mmap (io/mmap.c)
+ * LEVEL: L2 — Behavior (memory-mapped file I/O behavior API)
  * ============================================================================
  * Zero-copy read-only memory mapped file utility.
  *

@@ -8,6 +8,7 @@
 /**
  * ============================================================================
  * MODULE: Vk_scene (vulkan/vk_scene.c)
+ * LEVEL: L4 — Self-Management (Vulkan per-scene canvas GPU setup)
  * ============================================================================
  * per-scene offscreen canvases (the scene's own buffer).
  *

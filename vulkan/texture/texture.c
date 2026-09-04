@@ -13,6 +13,7 @@
 /**
  * ============================================================================
  * MODULE: Texture (vulkan/texture/texture.c)
+ * LEVEL: L4 — Self-Management (Vulkan bindless texture GPU setup)
  * ============================================================================
  * 1 on failure.
  *

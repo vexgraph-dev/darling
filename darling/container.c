@@ -8,6 +8,7 @@
 /**
  * ============================================================================
  * MODULE: Container (darling/container.c)
+ * LEVEL: L2 — Behavior (UI layout base behavior API)
  * ============================================================================
  * layout base of every darling node
  *

@@ -14,6 +14,7 @@
 /**
  * ============================================================================
  * MODULE: Panel_bridge (window/panel_bridge.c)
+ * LEVEL: L4 — Self-Management (OS window/IOSurface panel glue)
  * ============================================================================
  * pure-C bridge for IOSurface panel operations.
  *

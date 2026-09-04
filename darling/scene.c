@@ -8,6 +8,7 @@
 /**
  * ============================================================================
  * MODULE: Scene (darling/scene.c)
+ * LEVEL: L2 — Behavior (UI scene root behavior API)
  * ============================================================================
  * the scene root (Legacy: darling/Scene.java).
  *

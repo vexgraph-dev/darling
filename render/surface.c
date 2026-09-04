@@ -11,6 +11,7 @@
 /**
  * ============================================================================
  * MODULE: Surface (render/surface.c)
+ * LEVEL: L2 — Behavior (double-buffered surface behavior API)
  * ============================================================================
  * a scissored, double-buffered stamp of the master canvas.
  *
