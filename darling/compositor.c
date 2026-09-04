@@ -6,6 +6,7 @@
 #include "nio/mem.h"
 #include "oop/type.h"
 #include "time/nanotime.h"
+#include "vulkan/sdf_gpu.h"
 #include "vulkan/vk.h"
 #include "vulkan/vk_iosurface.h"
 #include "vulkan/vk_scene.h"
@@ -53,10 +54,8 @@ extern bool VkView_refreshAll(VkInstance instance, PFN_vkGetInstanceProcAddr gpa
 extern bool VkSceneCanvas_initModule(VkInstance instance, PFN_vkGetInstanceProcAddr gpa, VkPhysicalDevice phys, VkDevice device);
 extern bool VkIOSurface_initModule(VkInstance instance, PFN_vkGetInstanceProcAddr gpa, VkPhysicalDevice phys, VkDevice device);
 extern bool Texture_initModule(void *instance, void *gpa, void *phys, void *device, void *queue, uint32_t queueFamily);
-extern bool SdfGpu_initModule(VkDevice device, VkPhysicalDevice phys, PFN_vkGetDeviceProcAddr gdpa, VkQueue queue, uint32_t queueFamily);
 extern void VkView_shutdown(void);
 extern void VkSceneCanvas_shutdownModule(void);
-extern void SdfGpu_shutdown(void);
 
 #define COMPOSITOR_LOAD_DEVICE(name) \
     static PFN_vk##name name##_fn; \
@@ -413,7 +412,7 @@ void Darling_initCompositor(Window *window) {
     VkSceneCanvas_initModule(inst, gpa, phys, dev);
     VkIOSurface_initModule(inst, gpa, phys, dev);
     Texture_initModule(inst, (void*) gpa, phys, dev, queue, qf);
-    SdfGpu_initModule(dev, phys, gdpa, queue, qf);
+    SdfGpu_initModule(inst, (void*) gpa, phys, dev, queue, qf);
 
     Vk_setPreFrameRenderer(Darling_preFrame, window);
     Vk_setFrameRenderer(Darling_renderFrame, window);
