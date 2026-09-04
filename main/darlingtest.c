@@ -11,6 +11,7 @@
 #include <stdatomic.h>
 #include <math.h>
 
+#include "annotation/overview.h"
 #include "buffer/color_buffer.h"
 #include "darling/panel.h"
 #include "darling/scene.h"
@@ -51,6 +52,31 @@ typedef struct {
 } DarlingDemo;
 
 static DarlingDemo g_demo = {0};
+
+;;OVERVIEW
+/**
+ * ============================================================================
+ * MODULE: DarlingDemo (main/darlingtest.c — darling-tree live demo)
+ * ============================================================================
+ * Two-thread decoupled painter: a draw worker paints sky/triangle/UI scenes
+ * into offscreen double-buffered Surfaces at unthrottled speed while Thread 0
+ * drains OS events, resolves container anchors, stamps surfaces onto the
+ * master frame, presents, and reports Draw/Present FPS in the title.
+ *
+ * STRUCT FIELDS (local to this file):
+ * ----------------------------------------------------------------------------
+ *   DarlingDemo { window, master, masterW/H, scene, skyPanel, triPanel,
+ *     uiPanel, skySurface, triSurface, uiSurface, drawWorker, running,
+ *     drawFps, drawFrametimeUs, presentFps, presentFrametimeUs }
+ *
+ * FUNCTION REGISTRY:
+ * ----------------------------------------------------------------------------
+ * Core Functions:
+ *   - paintSky/Triangle/UI(surface, t) : Per-scene software painters
+ *   - draw_worker_job(self, task)      : Unthrottled paint + flip loop
+ *   - main()                           : Build window/tree, run threads
+ * ============================================================================
+ */
 
 // --- Draw Worker Thread Jobs (paints into back buffers & flips lock-free) ----
 
