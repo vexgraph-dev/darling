@@ -61,7 +61,7 @@ static unsigned char *loadSpvFile(const char *path, size_t *outSize) {
         fclose(f);
         return nullptr;
     }
-    unsigned char *bytes = (unsigned char *)malloc((size_t)size);
+    unsigned char *bytes = (unsigned char*) malloc((size_t)size);
     if (!bytes) {
         fclose(f);
         return nullptr;
@@ -130,7 +130,7 @@ static VkShaderModule loadModule(const char *name) {
     }
     VkShaderModuleCreateInfo ci = { .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
     ci.codeSize = size;
-    ci.pCode = (const uint32_t *)code;
+    ci.pCode = (const uint32_t*) code;
     VkShaderModule mod = VK_NULL_HANDLE;
     if (CreateShaderModule(s_device, &ci, nullptr, &mod) != VK_SUCCESS)
         mod = VK_NULL_HANDLE;
@@ -458,8 +458,8 @@ bool SdfGpu_bakePage(const uint8_t *coverage, int dim, uint8_t *outSdf) {
         return false;
 
     // Pack coverage bytes into words + zero the sdf words (host side).
-    uint32_t *covWords = (uint32_t *)s_covMap;
-    uint32_t *sdfWords = (uint32_t *)s_sdfMap;
+    uint32_t *covWords = (uint32_t*) s_covMap;
+    uint32_t *sdfWords = (uint32_t*) s_sdfMap;
     for (size_t i = 0; i < SDF_WORDS; i++) {
         size_t b = i * 4;
         covWords[i] = (uint32_t)coverage[b] | ((uint32_t)coverage[b + 1] << 8) |
