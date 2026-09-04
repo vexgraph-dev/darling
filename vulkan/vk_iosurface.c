@@ -7,6 +7,35 @@
 #include <CoreFoundation/CoreFoundation.h>
 #include <IOSurface/IOSurface.h>
 #include <vulkan/vulkan_metal.h>
+#include "annotation/overview.h"
+
+;;OVERVIEW
+/**
+ * ============================================================================
+ * MODULE: Vk_iosurface (vulkan/vk_iosurface.c)
+ * ============================================================================
+ * same GPU memory.
+ *
+ * FUNCTION REGISTRY:
+ * ----------------------------------------------------------------------------
+ * Constructors:
+ *   - VkIOSurface_create(width, height)
+ *
+ * Core Functions:
+ *   - VkIOSurface_initModule(instance, gpa, phys, device)
+ *   - VkIOSurface_wrap(ioSurface, width, height)
+ *   - VkIOSurface_export(surf)
+ *   - VkIOSurface_free(surf)
+ *   - VkIOSurface_width(surf)
+ *   - VkIOSurface_height(surf)
+ *   - VkIOSurface_createFramebuffer(surf, pass)
+ *
+ * Getters:
+ *   - VkIOSurface_getSurface(surf)
+ *   - VkIOSurface_getImage(surf)
+ * ============================================================================
+ */
+
 
 // VK_EXT_metal_objects — Vulkan ↔ IOSurface bridge.
 //

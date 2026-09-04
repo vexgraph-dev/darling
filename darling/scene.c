@@ -2,6 +2,49 @@
 
 #include "nio/mem.h"
 #include "oop/type.h"
+#include "annotation/overview.h"
+
+;;OVERVIEW
+/**
+ * ============================================================================
+ * MODULE: Scene (darling/scene.c)
+ * ============================================================================
+ * the scene root (Legacy: darling/Scene.java).
+ *
+ * FUNCTION REGISTRY:
+ * ----------------------------------------------------------------------------
+ * Constructors:
+ *   - Scene_0(void)
+ *   - Scene_2(width, height)
+ *   - Scene_3(width, height, mode)
+ *   - Scene2D_0(void)
+ *   - Scene3D_0(void)
+ *
+ * Setters:
+ *   - Scene_setMode(s, mode)
+ *   - Scene_setLocation(s, x, y)
+ *   - Scene_setSize(s, w, h)
+ *   - Scene_setParentAnchor(s, anchor)
+ *   - Scene_setSelfAnchor(s, anchor)
+ *   - Scene_setBackgroundColor(s, color)
+ *   - Scene2D_setLocation(s, x, y)
+ *   - Scene2D_setSize(s, w, h)
+ *   - Scene2D_setParentAnchor(s, anchor)
+ *   - Scene2D_setSelfAnchor(s, anchor)
+ *   - Scene2D_setBackgroundColor(s, color)
+ *   - Scene3D_setLocation(s, x, y)
+ *   - Scene3D_setSize(s, w, h)
+ *   - Scene3D_setParentAnchor(s, anchor)
+ *   - Scene3D_setSelfAnchor(s, anchor)
+ *   - Scene3D_setBackgroundColor(s, color)
+ *
+ * Getters:
+ *   - Scene_getMode(s)
+ *   - Scene_getVirtualWidth(s)
+ *   - Scene_getVirtualHeight(s)
+ * ============================================================================
+ */
+
 
 // darling/scene.c — scene root (Legacy: darling/Scene.java).
 

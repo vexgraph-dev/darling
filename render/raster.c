@@ -1,6 +1,26 @@
 #include "render/raster.h"
 
 #include <stdio.h>
+#include "annotation/overview.h"
+
+;;OVERVIEW
+/**
+ * ============================================================================
+ * MODULE: Raster (render/raster.c)
+ * ============================================================================
+ * the software rasterizer (pixels before Vulkan).
+ *
+ * FUNCTION REGISTRY:
+ * ----------------------------------------------------------------------------
+ * Core Functions:
+ *   - Raster_rect(buf, x, y, w, h, r, g, b, a)
+ *   - Raster_gradientH(buf, x, y, w, h, r0, g0, b0, a0, r1, g1, b1, a1)
+ *   - Raster_line(buf, x0, y0, x1, y1, r, g, b, a)
+ *   - Raster_triangle(buf, x0, y0, x1, y1, x2, y2, r, g, b, a)
+ *   - Raster_dumpPPM(buf, path)
+ * ============================================================================
+ */
+
 
 // render/raster.c — software rasterizer. Pure, clipped, zero-alloc.
 

@@ -5,6 +5,39 @@
 
 #include "system/display_info.h"
 #include "system/display_monitor.h"
+#include "annotation/overview.h"
+
+;;OVERVIEW
+/**
+ * ============================================================================
+ * MODULE: Vk_view (vulkan/vk_view.c)
+ * ============================================================================
+ * the per-monitor render cache (the compositor view).
+ *
+ * FUNCTION REGISTRY:
+ * ----------------------------------------------------------------------------
+ * Core Functions:
+ *   - VkView_refreshAll(instance, gpa, phys, device)
+ *   - VkView_count(void)
+ *   - VkView_at(index)
+ *   - VkView_forPoint(x, y)
+ *   - VkView_forMonitor(displayId)
+ *   - VkView_renderPass(view)
+ *   - VkView_image(view)
+ *   - VkView_beginPass(view, cb, r, g, b, a)
+ *   - VkView_endPass(view, cb)
+ *   - VkView_shutdown(void)
+ *
+ * Getters:
+ *   - VkView_getOriginX(view)
+ *   - VkView_getOriginY(view)
+ *   - VkView_getWidth(view)
+ *   - VkView_getHeight(view)
+ *   - VkView_getPointWidth(view)
+ *   - VkView_getPointHeight(view)
+ * ============================================================================
+ */
+
 
 // vulkan/vk_view.c — the per-monitor render cache.
 //

@@ -15,6 +15,34 @@
 #include "io/file.h"
 #include "nio/mem.h"
 #include "oop/type.h"
+#include "annotation/overview.h"
+
+;;OVERVIEW
+/**
+ * ============================================================================
+ * MODULE: Font_bake (font/font_bake.c)
+ * ============================================================================
+ * baked font store (install-time SDF atlas + dictionary).
+ *
+ * FUNCTION REGISTRY:
+ * ----------------------------------------------------------------------------
+ * Core Functions:
+ *   - FontBake_storeDir(void)
+ *   - FontBake_pathFor(familyName, outPath, maxLen)
+ *   - FontBake_bakeOne(familyName)
+ *   - FontBake_bakeAllFonts(void)
+ *   - FontBake_refreshAllFonts(void)
+ *   - FontBake_listInstalled(families[][256], paths[][1024], max)
+ *   - FontBake_installAll(force, progress, user)
+ *   - Font_open(familyName)
+ *   - Font_openBaked(familyName)
+ *
+ * Getters:
+ *   - FontBake_hasBaked(familyName)
+ *   - FontBake_isStale(familyName)
+ * ============================================================================
+ */
+
 
 // font/font_bake.c — baked font store implementation.
 //

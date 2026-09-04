@@ -6,6 +6,26 @@
 
 #include <vulkan/vulkan.h>
 #include <mach-o/dyld.h>
+#include "annotation/overview.h"
+
+;;OVERVIEW
+/**
+ * ============================================================================
+ * MODULE: Sdf_gpu (vulkan/sdf_gpu.c)
+ * ============================================================================
+ * GPU jump-flood SDF baker for font atlases.
+ *
+ * FUNCTION REGISTRY:
+ * ----------------------------------------------------------------------------
+ * Core Functions:
+ *   - SdfGpu_initModule(instance, gpa, phys, device, queue, queueFamily)
+ *   - SdfGpu_shutdown(void)
+ *   - SdfGpu_available(void)
+ *   - SdfGpu_bakePage(coverage, dim, outSdf)
+ *   - SdfGpu_pageDim(void)
+ * ============================================================================
+ */
+
 
 // sdf_gpu.c — jump-flood SDF baker (see sdf_gpu.h).
 //

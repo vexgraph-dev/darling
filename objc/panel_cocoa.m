@@ -4,6 +4,38 @@
 #include <string.h>
 
 #include "panel_cocoa.h"
+#include "annotation/overview.h"
+
+;;OVERVIEW
+/**
+ * ============================================================================
+ * MODULE: Panel_cocoa (objc/panel_cocoa.m)
+ * ============================================================================
+ * IOSurface-backed panel compositor.
+ *
+ * FUNCTION REGISTRY:
+ * ----------------------------------------------------------------------------
+ * Constructors:
+ *   - PanelCocoa_new(panel, width, height)
+ *
+ * Core Functions:
+ *   - PanelCocoa_free(pc)
+ *   - PanelCocoa_layer(pc)
+ *   - PanelCocoa_width(pc)
+ *   - PanelCocoa_height(pc)
+ *   - PanelCocoa_surface(pc)
+ *   - PanelCocoa_markDirty(pc)
+ *   - PanelCocoa_fromPanel(panel)
+ *
+ * Setters:
+ *   - PanelCocoa_setSize(pc, width, height)
+ *   - PanelCocoa_setAnchors(pc, parentAnchor, selfAnchor)
+ *
+ * Getters:
+ *   - PanelCocoa_isDirty(pc)
+ * ============================================================================
+ */
+
 
 // Forward declare to avoid any ObjC umbrella header pulling in a Collection
 // typedef that collides with our struct Collection (collection.h).

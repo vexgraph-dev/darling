@@ -7,6 +7,32 @@
 #include "system/image_mac.h"
 
 #include <vulkan/vulkan.h>
+#include "annotation/overview.h"
+
+;;OVERVIEW
+/**
+ * ============================================================================
+ * MODULE: Texture (vulkan/texture/texture.c)
+ * ============================================================================
+ * 1 on failure.
+ *
+ * FUNCTION REGISTRY:
+ * ----------------------------------------------------------------------------
+ * Core Functions:
+ *   - Texture_initModule(instance, gpa, phys, device, queue, queueFamily)
+ *   - Texture_shutdown(void)
+ *   - Texture_load(vfsPath)
+ *   - Texture_loadRaw(rgbaData, width, height)
+ *   - Texture_updateSubRaw(id, rgbaData, x, y, width, height)
+ *
+ * Getters:
+ *   - Texture_isReady(void)
+ *   - Texture_getDescriptorSet(void)
+ *   - Texture_getDescriptorSetLayout(void)
+ *   - Texture_getSize(id, outW, outH)
+ * ============================================================================
+ */
+
 
 #define MAX_BINDLESS_TEXTURES 1024
 

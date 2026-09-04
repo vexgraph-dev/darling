@@ -4,6 +4,32 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include "annotation/overview.h"
+
+;;OVERVIEW
+/**
+ * ============================================================================
+ * MODULE: Rich_text (text/rich_text.c)
+ * ============================================================================
+ * Core subsystem implementation for Rich_text.
+ *
+ * FUNCTION REGISTRY:
+ * ----------------------------------------------------------------------------
+ * Constructors:
+ *   - RichText_new(void)
+ *
+ * Core Functions:
+ *   - RichText_free(rt)
+ *   - RichText_layout(rt, maxWidth)
+ *
+ * Setters:
+ *   - RichText_setStyle(rt, id, font, size, color, bold, decor)
+ *   - RichText_setShadow(rt, id, offsetX, offsetY, color)
+ *   - RichText_setWrapMode(rt, mode)
+ *   - RichText_setString(rt, str)
+ * ============================================================================
+ */
+
 
 RichText *RichText_new(void) {
     RichText *rt = Memory_alloc(TYPE_PANEL_SINGLETON, sizeof(RichText));

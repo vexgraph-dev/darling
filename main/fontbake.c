@@ -15,6 +15,31 @@
 #include "font/font.h"
 #include "font/font_bake.h"
 #include "io/vexhome.h"
+#include "annotation/overview.h"
+
+;;OVERVIEW
+/**
+ * ============================================================================
+ * MODULE: Fontbake (main/fontbake.c)
+ * ============================================================================
+ * headless baked-font installer CLI.
+ *
+ * FUNCTION REGISTRY:
+ * ----------------------------------------------------------------------------
+ * Core Functions:
+ *   - onProgress(family, done, total, user)
+ *   - printf(%s\n", done, total, family)
+ *   - fflush(stdout)
+ *   - cmdList(void)
+ *   - for(i++)
+ *   - cmdVerify(family)
+ *   - Font_free(f)
+ *   - cmdEmoji(void)
+ *   - main(argc, argv)
+ *   - VexHome_ensure()
+ * ============================================================================
+ */
+
 
 static void onProgress(const char *family, size_t done, size_t total, void *user) {
     (void)user;

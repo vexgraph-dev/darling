@@ -1,6 +1,22 @@
 #include "io/bake.h"
 #include <stdio.h>
 #include <string.h>
+#include "annotation/overview.h"
+
+;;OVERVIEW
+/**
+ * ============================================================================
+ * MODULE: Bake (io/bake.c)
+ * ============================================================================
+ * Offline asset compilation pipeline
+ *
+ * FUNCTION REGISTRY:
+ * ----------------------------------------------------------------------------
+ * Core Functions:
+ *   - Scene_bake(outputPath)
+ * ============================================================================
+ */
+
 
 // Dummy vertex structure for our baked file
 typedef struct {

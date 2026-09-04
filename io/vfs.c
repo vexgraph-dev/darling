@@ -5,6 +5,28 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <pwd.h>
+#include "annotation/overview.h"
+
+;;OVERVIEW
+/**
+ * ============================================================================
+ * MODULE: Vfs (io/vfs.c)
+ * ============================================================================
+ * Virtual File System for the Anti Engine Hub
+ *
+ * FUNCTION REGISTRY:
+ * ----------------------------------------------------------------------------
+ * Constructors:
+ *   - Vfs_init(void)
+ *
+ * Core Functions:
+ *   - Vfs_resolve(uri, outPath, maxLen)
+ *
+ * Setters:
+ *   - Vfs_setProject(projectName)
+ * ============================================================================
+ */
+
 
 static char s_userHome[1024] = {0};
 static char s_antiHome[1024] = {0};

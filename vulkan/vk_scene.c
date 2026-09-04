@@ -2,6 +2,35 @@
 
 #include <stdio.h>
 #include <string.h>
+#include "annotation/overview.h"
+
+;;OVERVIEW
+/**
+ * ============================================================================
+ * MODULE: Vk_scene (vulkan/vk_scene.c)
+ * ============================================================================
+ * per-scene offscreen canvases (the scene's own buffer).
+ *
+ * FUNCTION REGISTRY:
+ * ----------------------------------------------------------------------------
+ * Core Functions:
+ *   - VkSceneCanvas_initModule(instance, gpa, phys, device)
+ *   - VkSceneCanvas_acquire(key, width, height)
+ *   - VkSceneCanvas_flushRetired(void)
+ *   - VkSceneCanvas_width(canvas)
+ *   - VkSceneCanvas_height(canvas)
+ *   - VkSceneCanvas_frontImage(canvas)
+ *   - VkSceneCanvas_staleImage(canvas, outWidth, outHeight)
+ *   - VkSceneCanvas_beginBackPass(canvas, cb, r, g, b, a)
+ *   - VkSceneCanvas_endBackPass(canvas, cb)
+ *   - VkSceneCanvas_needsRender(canvas, nowNs, minGapNs)
+ *   - VkSceneCanvas_generation(canvas)
+ *   - VkSceneCanvas_markSubmitted(canvas, nowNs)
+ *   - VkSceneCanvas_flip(canvas)
+ *   - VkSceneCanvas_shutdownModule(void)
+ * ============================================================================
+ */
+
 
 // vulkan/vk_scene.c — per-scene offscreen canvases.
 //

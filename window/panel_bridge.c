@@ -8,6 +8,43 @@
 #include "darling/container.h"
 #include "darling/panel.h"
 #include "window/window.h"
+#include "annotation/overview.h"
+
+;;OVERVIEW
+/**
+ * ============================================================================
+ * MODULE: Panel_bridge (window/panel_bridge.c)
+ * ============================================================================
+ * pure-C bridge for IOSurface panel operations.
+ *
+ * FUNCTION REGISTRY:
+ * ----------------------------------------------------------------------------
+ * Constructors:
+ *   - PanelCocoa_new(panel, w, h)
+ *
+ * Core Functions:
+ *   - anti_AttachPanelIOSurfaceChildren(window, contentPanel, width, height)
+ *   - TextCore_backingScale(void)
+ *   - for(i++)
+ *   - PanelCocoa_fromPanel(panel)
+ *   - anti_ResizePanelIOSurfaceChildren(window, contentPanel, width, height)
+ *   - anti_CompositeIOSurfaceChildren(window, contentPanel)
+ *
+ * Setters:
+ *   - PanelCocoa_setSize(pc, w, h)
+ *
+ * Getters:
+ *   - anti_GetPanelMaxSize(p, outMaxW, outMaxH)
+ *   - anti_GetChildLayout(child, winW, winH, outX, outY, outW, outH)
+ *   - anti_GetChildCount(contentPanel)
+ *   - anti_GetChildAt(contentPanel, index)
+ *   - Panel_getChild(contentPanel, index)
+ *   - anti_GetPanelSize(p, outW, outH)
+ *   - anti_GetChildParentAnchor(child)
+ *   - anti_GetChildSelfAnchor(child)
+ * ============================================================================
+ */
+
 
 // src/window/panel_bridge.c — pure-C bridge for IOSurface panel operations.
 //

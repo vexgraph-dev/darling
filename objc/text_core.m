@@ -10,6 +10,23 @@
 
 #include "annotation/draft.h"
 #include "annotation/intention.h"
+#include "annotation/overview.h"
+
+;;OVERVIEW
+/**
+ * ============================================================================
+ * MODULE: Text_core (objc/text_core.m)
+ * ============================================================================
+ * native line raster seam.
+ *
+ * FUNCTION REGISTRY:
+ * ----------------------------------------------------------------------------
+ * Core Functions:
+ *   - TextCore_backingScale(void)
+ *   - TextCore_rasterLine(utf8, family, pxHeight, argb, outRgba, outW, outH)
+ * ============================================================================
+ */
+
 
 ;;DRAFT
 ;;INTENTION("Native CoreText line raster for sharp Label, active-mode backing")

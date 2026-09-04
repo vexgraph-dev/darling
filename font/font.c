@@ -8,6 +8,53 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "annotation/overview.h"
+
+;;OVERVIEW
+/**
+ * ============================================================================
+ * MODULE: Font (font/font.c)
+ * ============================================================================
+ * page atlas: big coverages (CJK-scale fonts) spill past one 2048^2
+ *
+ * FUNCTION REGISTRY:
+ * ----------------------------------------------------------------------------
+ * Core Functions:
+ *   - Font_load(path)
+ *   - Font_free(font)
+ *   - Font_pageCount(font)
+ *   - Font_pageTextureId(font, page)
+ *   - Font_pageIsColor(font, page)
+ *   - Font_loadSystem(familyName)
+ *   - Font_prewarm(font, chars)
+ *   - Font_prewarmAscii(font)
+ *   - Font_atlasDim(font)
+ *   - Font_copyAtlasMonoPage(font, page, outMono)
+ *   - Font_glyphCount(font)
+ *   - Font_copyGlyphs(font, outCp, outMetrics, cap)
+ *   - Font_coversCodepoint(font, codepoint)
+ *   - Font_rasterSdfWork(font, codepoint, outWork)
+ *   - Font_packSdfWork(font, work, outBase)
+ *   - Font_freeSdfWork(work)
+ *   - Font_indexGlyph(font, codepoint, metrics)
+ *   - Font_rasterCoverageWork(font, codepoint, outWork)
+ *   - Font_freeCovWork(work)
+ *   - Font_bakeRefScale(font)
+ *   - Font_createFromBaked(atlasMono, pageCount, atlasDim, codepoints, metrics, count, ascent, descent, lineGap)
+ *
+ * Setters:
+ *   - Font_setFamily(font, familyName)
+ *
+ * Getters:
+ *   - Font_getGlyph(font, codepoint, pixelHeight, outMetrics)
+ *   - Font_getTextureId(font)
+ *   - Font_getVMetrics(font, ascent, descent, lineGap)
+ *   - Font_getScaleForPixelHeight(font, height)
+ *   - Font_getKerning(font, cp1, cp2, pixelHeight)
+ *   - Font_isBaked(font)
+ * ============================================================================
+ */
+
 
 #define ATLAS_SIZE 2048
 _Static_assert(ATLAS_SIZE == FONT_ATLAS_DIM, "atlas dim must match header");

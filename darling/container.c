@@ -2,6 +2,69 @@
 
 #include "nio/mem.h"
 #include "oop/type.h"
+#include "annotation/overview.h"
+
+;;OVERVIEW
+/**
+ * ============================================================================
+ * MODULE: Container (darling/container.c)
+ * ============================================================================
+ * layout base of every darling node
+ *
+ * FUNCTION REGISTRY:
+ * ----------------------------------------------------------------------------
+ * Constructors:
+ *   - Container_0(void)
+ *
+ * Core Functions:
+ *   - Container_markDirty(c)
+ *   - Container_clearDirty(c)
+ *   - Container_resolve(c, parentX, parentY, parentW, parentH, outRect)
+ *   - Container_hitTest(c, parentX, parentY, parentW, parentH, pointX, pointY)
+ *
+ * Setters:
+ *   - Container_setX(c, x)
+ *   - Container_setY(c, y)
+ *   - Container_setWidth(c, w)
+ *   - Container_setHeight(c, h)
+ *   - Container_setLocation(c, x, y)
+ *   - Container_setSize(c, w, h)
+ *   - Container_setMinSize(c, w, h)
+ *   - Container_setMaxSize(c, w, h)
+ *   - Container_setScale(c, sx, sy)
+ *   - Container_setParentAnchor(c, anchor)
+ *   - Container_setSelfAnchor(c, anchor)
+ *   - Container_setPivotReference(c, pivot)
+ *   - Container_setCenter(c)
+ *   - Container_setPercentX(c, pct)
+ *   - Container_setPercentY(c, pct)
+ *   - Container_setZ(c, z)
+ *   - Container_setVisible(c, visible)
+ *   - Container_setEnabled(c, enabled)
+ *   - Container_setClipChildren(c, clip)
+ *
+ * Getters:
+ *   - Container_getX(c)
+ *   - Container_getY(c)
+ *   - Container_getWidth(c)
+ *   - Container_getHeight(c)
+ *   - Container_getScaleWidth(c)
+ *   - Container_getScaleHeight(c)
+ *   - Container_getParentAnchor(c)
+ *   - Container_getSelfAnchor(c)
+ *   - Container_getPivotReference(c)
+ *   - Container_getPercentX(c)
+ *   - Container_getPercentY(c)
+ *   - Container_hasPercentX(c)
+ *   - Container_hasPercentY(c)
+ *   - Container_getZ(c)
+ *   - Container_isVisible(c)
+ *   - Container_isEnabled(c)
+ *   - Container_isClipChildren(c)
+ *   - Container_isDirty(c)
+ * ============================================================================
+ */
+
 
 // darling/container.c — layout core (Legacy: darling/Container.java).
 

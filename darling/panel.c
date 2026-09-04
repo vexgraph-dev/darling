@@ -3,6 +3,59 @@
 #include "annotation/incomplete.h"
 #include "nio/mem.h"
 #include "oop/type.h"
+#include "annotation/overview.h"
+
+;;OVERVIEW
+/**
+ * ============================================================================
+ * MODULE: Panel (darling/panel.c)
+ * ============================================================================
+ * the UI panel: Container layout + background color +
+ *
+ * FUNCTION REGISTRY:
+ * ----------------------------------------------------------------------------
+ * Constructors:
+ *   - Panel_0(void)
+ *   - Panel_1(parent)
+ *
+ * Core Functions:
+ *   - Panel_childCount(p)
+ *   - Panel_containsChild(p, child)
+ *   - Panel_addContainer(p, child)
+ *   - Panel_removeChild(p, child)
+ *   - Panel_add(parent, node)
+ *   - Panel_refCount(p)
+ *
+ * Setters:
+ *   - Panel_setBackgroundColor(p, color)
+ *   - Panel_setBackgroundColorRGBA(p, r, g, b, a)
+ *   - Panel_setRenderHandler(p, fn)
+ *   - Panel_setLocation(p, x, y)
+ *   - Panel_setSize(p, w, h)
+ *   - Panel_setMinSize(p, w, h)
+ *   - Panel_setMaxSize(p, w, h)
+ *   - Panel_setParentAnchor(p, anchor)
+ *   - Panel_setSelfAnchor(p, anchor)
+ *   - Panel_setVisible(p, visible)
+ *   - Panel_setZ(p, z)
+ *   - Panel_setImage(p, image)
+ *   - Panel_setFilters(p, filters)
+ *   - Panel_setBackgroundColorAndMark(p, color)
+ *
+ * Getters:
+ *   - Panel_getBackgroundColor(p)
+ *   - Panel_getRenderHandler(p)
+ *   - Panel_isVisible(p)
+ *   - Panel_getImage(p)
+ *   - Panel_getFilters(p)
+ *   - Panel_getParent(p)
+ *   - Panel_hasParent(p)
+ *   - Panel_getChild(p, index)
+ *   - Panel_hasChildren(p)
+ *   - Panel_getSource(p)
+ * ============================================================================
+ */
+
 
 // darling/panel.c — panel + tree + view model (Legacy: darling/Panel.java).
 

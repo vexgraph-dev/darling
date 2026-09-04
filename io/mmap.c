@@ -3,6 +3,23 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include "annotation/overview.h"
+
+;;OVERVIEW
+/**
+ * ============================================================================
+ * MODULE: Mmap (io/mmap.c)
+ * ============================================================================
+ * Zero-copy read-only memory mapped file utility.
+ *
+ * FUNCTION REGISTRY:
+ * ----------------------------------------------------------------------------
+ * Core Functions:
+ *   - MemoryMap_open(path)
+ *   - MemoryMap_close(map)
+ * ============================================================================
+ */
+
 
 MemoryMap MemoryMap_open(const char *path) {
     MemoryMap map = { .data = nullptr, .size = 0, .valid = false };

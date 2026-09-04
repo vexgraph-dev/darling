@@ -3,6 +3,36 @@
 #import <CoreText/CoreText.h>
 #include <string.h>
 #include <stdbool.h>
+#include "annotation/overview.h"
+
+;;OVERVIEW
+/**
+ * ============================================================================
+ * MODULE: Font_cocoa (objc/font_cocoa.m)
+ * ============================================================================
+ * alpha RGBA8 through the OS text stack,
+ *
+ * FUNCTION REGISTRY:
+ * ----------------------------------------------------------------------------
+ * Core Functions:
+ *   - System_listInstalledFonts(families[][256], paths[][1024], max)
+ *   - for(list)
+ *   - strncpy(families[count], famC, 255)
+ *   - CFRelease(url)
+ *   - System_rasterColorGlyph(familyName, codepoint, pixelHeight, outRGBA, outW, outH, outXOff, outYOff, outAdvance)
+ *   - CTFontGetAdvancesForGlyphs(owner, kCTFontOrientationDefault, &glyph, &adv, 1)
+ *   - CGColorSpaceRelease(cs)
+ *   - free(raw)
+ *   - CGContextSetShouldAntialias(ctx, true)
+ *   - CGContextSetTextPosition(ctx, 1.0, 1.0)
+ *   - CTFontDrawGlyphs(owner, &glyph, &CGPointZero, 1, ctx)
+ *   - CGContextRelease(ctx)
+ *
+ * Getters:
+ *   - System_getFontPath(familyName)
+ * ============================================================================
+ */
+
 
 // Lists installed font families with a resolvable source path.
 // Fills up to `max` entries of families[][256] + paths[][1024]; returns count.

@@ -5,6 +5,34 @@
 
 #include "nio/mem.h"
 #include "oop/type.h"
+#include "annotation/overview.h"
+
+;;OVERVIEW
+/**
+ * ============================================================================
+ * MODULE: Surface (render/surface.c)
+ * ============================================================================
+ * a scissored, double-buffered stamp of the master canvas.
+ *
+ * FUNCTION REGISTRY:
+ * ----------------------------------------------------------------------------
+ * Constructors:
+ *   - Surface_new(width, height, x, y)
+ *
+ * Core Functions:
+ *   - Surface_back(panel)
+ *   - Surface_flip(panel)
+ *   - Surface_front(panel)
+ *   - Surface_x(panel)
+ *   - Surface_y(panel)
+ *   - Surface_composite(panel, master)
+ *   - Surface_free(panel)
+ *
+ * Setters:
+ *   - Surface_setScissor(panel, x, y)
+ * ============================================================================
+ */
+
 
 // render/panel.c — mini-swapchain per panel. The producer paints the back
 // canvas and flips one atomic word; the compositor reads only the front, so

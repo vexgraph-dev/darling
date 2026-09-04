@@ -3,6 +3,39 @@
 #include "darling/picture.h"
 #include "nio/mem.h"
 #include "oop/type.h"
+#include "annotation/overview.h"
+
+;;OVERVIEW
+/**
+ * ============================================================================
+ * MODULE: Canvas (darling/canvas.c)
+ * ============================================================================
+ * the flat 2D layout root (Legacy: darling/Canvas.java).
+ *
+ * FUNCTION REGISTRY:
+ * ----------------------------------------------------------------------------
+ * Constructors:
+ *   - Canvas_0(void)
+ *
+ * Core Functions:
+ *   - Canvas_visibleRect(c, fbW, fbH, outRect)
+ *   - Canvas_buildProjection(c, fbW, fbH, dest)
+ *   - Canvas_resolveRoot(c, node, fbW, fbH, outRect)
+ *   - Canvas_windowToCanvas(c, winX, winY, fbW, fbH, outPoint)
+ *
+ * Setters:
+ *   - Canvas_setVirtualSize(c, width, height)
+ *   - Canvas_setMode(c, mode)
+ *   - Canvas_setDpiScale(c, scale)
+ *
+ * Getters:
+ *   - Canvas_getVirtualWidth(c)
+ *   - Canvas_getVirtualHeight(c)
+ *   - Canvas_getMode(c)
+ *   - Canvas_getDpiScale(c)
+ * ============================================================================
+ */
+
 
 // darling/canvas.c — canonical 2D space + projection (Legacy: Canvas.java).
 

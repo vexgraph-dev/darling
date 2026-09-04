@@ -2,6 +2,27 @@
 #include "vulkan/vk.h"
 #include "nio/mem.h"
 #include "oop/type.h"
+#include "annotation/overview.h"
+
+;;OVERVIEW
+/**
+ * ============================================================================
+ * MODULE: Rich_label (darling/rich_label.c)
+ * ============================================================================
+ * Core subsystem implementation for Rich_label.
+ *
+ * FUNCTION REGISTRY:
+ * ----------------------------------------------------------------------------
+ * Constructors:
+ *   - RichLabel_0(void)
+ *   - RichLabel_1(parent)
+ *
+ * Setters:
+ *   - RichLabel_setTextModel(label, model)
+ *   - RichLabel_setWrapMode(label, mode)
+ * ============================================================================
+ */
+
 
 static void RichLabel_renderFn(Panel *panel, void *renderer, void *cmdBuffer, float x, float y, float w, float h) {
     RichLabel *rl = (RichLabel*) panel;

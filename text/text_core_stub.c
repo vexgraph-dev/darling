@@ -4,6 +4,23 @@
 
 #include "annotation/draft.h"
 #include "annotation/intention.h"
+#include "annotation/overview.h"
+
+;;OVERVIEW
+/**
+ * ============================================================================
+ * MODULE: Text_core_stub (text/text_core_stub.c)
+ * ============================================================================
+ * non-Apple fallback. No native raster here;
+ *
+ * FUNCTION REGISTRY:
+ * ----------------------------------------------------------------------------
+ * Core Functions:
+ *   - TextCore_backingScale(void)
+ *   - TextCore_rasterLine(utf8, family, pxHeight, argb, outRgba, outW, outH)
+ * ============================================================================
+ */
+
 
 // text/text_core_stub.c — non-Apple fallback. No native raster here;
 // Label falls back to the SDF atlas path.
