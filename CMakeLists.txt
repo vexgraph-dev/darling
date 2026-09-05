@@ -149,3 +149,11 @@ endif()
 if(NOT TARGET darling::ui)
     add_library(darling::ui ALIAS darling)
 endif()
+
+# Anim artifact (anim §1): headless easing + keyframe player suite.
+if(NOT TARGET anim_test)
+    add_executable(anim_test
+        darling/anim/anim_test.c
+    )
+    target_link_libraries(anim_test PRIVATE darling)
+endif()
