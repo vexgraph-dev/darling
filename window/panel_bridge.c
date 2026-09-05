@@ -6,7 +6,7 @@
 #include "nio/mem.h"
 #include "lang/vec4.h"
 #include "darling/container.h"
-#include "darling/panel.h"
+#include "darling/panel/panel.h"
 #include "window/window.h"
 #include "annotation/overview.h"
 

@@ -5,11 +5,12 @@
 #include <stdint.h>
 
 #include "c23/constructor.h"
+#include "darling-type.h"
 #include "darling/container.h"
 #include "struct/list.h"
 #include "struct/set.h"
 
-// darling/panel.h — the UI panel: Container layout + background color +
+// darling/panel/panel.h — the UI panel: Container layout + background color +
 // the parent/child tree (Legacy: darling/Panel.java, contract-first).
 //
 // The VIEW model: Panel_add deep-copies STRUCTURE but aliases shared payloads

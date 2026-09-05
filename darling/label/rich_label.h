@@ -1,7 +1,7 @@
 #ifndef DARLING_RICH_LABEL_H
 #define DARLING_RICH_LABEL_H
 
-#include "panel.h"
+#include "darling/panel/panel.h"
 #include "text/rich_text.h"
 
 typedef struct RichLabel {

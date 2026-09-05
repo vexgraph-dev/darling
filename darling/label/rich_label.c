@@ -13,7 +13,7 @@
  * Retained-mode rich-text view: a Panel hosting a RichText layout model with
  * an inherited wrap mode, rendered through the SDF atlas path.
  *
- * STRUCT FIELDS (Mirroring darling/rich_label.h):
+ * STRUCT FIELDS (Mirroring darling/label/rich_label.h):
  * ----------------------------------------------------------------------------
  *   Panel base;            // Inherited layout, bounds, and hierarchy state
  *   RichText *textModel;   // Owned styled-text layout model (see rich_text.h)

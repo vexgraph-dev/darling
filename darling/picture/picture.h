@@ -5,7 +5,7 @@
 #include <stdint.h>
 
 #include "c23/constructor.h"
-#include "darling/panel.h"
+#include "darling/panel/panel.h"
 #include "annotation/intention.h"
 
 ;;INTENTION("Retained-mode off-heap picture node: Panel subclass holding an Image asset with -1 auto-size from the image aspect.")

@@ -1,7 +1,7 @@
 #ifndef DARLING_LABEL_H
 #define DARLING_LABEL_H
 
-#include "panel.h"
+#include "darling/panel/panel.h"
 #include "font/font.h"
 #include <stdint.h>
 #include "c23/constructor.h"

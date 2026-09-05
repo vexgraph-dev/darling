@@ -5,9 +5,9 @@
 #include <stdint.h>
 
 #include "c23/constructor.h"
-#include "darling/panel.h"
+#include "darling/panel/panel.h"
 
-// darling/scene.h — the scene root (Legacy: darling/Scene.java).
+// darling/scene/scene.h — the scene root (Legacy: darling/Scene.java).
 //
 // Panel + mapping mode. The scene's virtual size IS its Container w/h: the
 // scene never re-renders on resize — the present pass scales it into whatever

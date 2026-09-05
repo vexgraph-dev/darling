@@ -21,7 +21,7 @@
  *   1. Sharp Path : Native CoreText line rasterization into a textured quad.
  *   2. SDF Path   : Multi-pass signed distance field fallback rendering.
  *
- * STRUCT FIELDS (Mirroring darling/label.h):
+ * STRUCT FIELDS (Mirroring darling/label/label.h):
  * ----------------------------------------------------------------------------
  *   Panel base;              // Inherited layout, bounds, and hierarchy state
  *   char *text;              // UTF-8 string payload

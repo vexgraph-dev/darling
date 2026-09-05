@@ -1,5 +1,5 @@
 #include "annotation/overview.h"
-#include "darling/picture.h"
+#include "darling/picture/picture.h"
 #include "nio/mem.h"
 #include "oop/type.h"
 
@@ -12,7 +12,7 @@
  * Retained-mode off-heap picture node that hosts an Image asset with optional
  * UV cropping, dimension overrides, and hierarchical layout anchoring.
  *
- * STRUCT FIELDS (Mirroring darling/picture.h):
+ * STRUCT FIELDS (Mirroring darling/picture/picture.h):
  * ----------------------------------------------------------------------------
  *   Panel base;            // Base UI panel state (bounds, anchors, background)
  *   void *image;           // Pointer to raw Image asset descriptor

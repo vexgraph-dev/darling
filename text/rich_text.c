@@ -1,5 +1,6 @@
 #include "nio/mem.h"
 #include "oop/type.h"
+#include "darling-type.h"
 #include "rich_text.h"
 #include <stdlib.h>
 #include <string.h>
@@ -51,7 +52,7 @@
 
 
 RichText *RichText_new(void) {
-    RichText *rt = Memory_alloc(TYPE_PANEL_SINGLETON, sizeof(RichText));
+    RichText *rt = Memory_alloc(TYPE_RICHTEXT_SINGLETON, sizeof(RichText));
     if(rt) { memset(rt, 0, sizeof(RichText)); };
     (*rt).styleCapacity = 16;
     (*rt).styles = Memory_alloc(TYPE_ARRAY, (*rt).styleCapacity * sizeof(TextStyle));

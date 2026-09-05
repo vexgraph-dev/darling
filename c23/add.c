@@ -1,7 +1,7 @@
 #include "c23/add.h"
 
 #include "annotation/overview.h"
-#include "darling/panel.h"
+#include "darling/panel/panel.h"
 #include "oop/type.h"
 
 ;;OVERVIEW
@@ -78,5 +78,63 @@ const char *Darling_kindName(uint32_t classId) {
         return "Container";
     if (classId == ID_CANVAS)
         return "Canvas";
+    if (classId == ID_LAYERED_PANEL)
+        return "LayeredPanel";
+    if (classId == ID_SECTION_PANEL)
+        return "SectionPanel";
+    if (classId == ID_BUTTON)
+        return "Button";
+    if (classId == ID_SWITCH)
+        return "Switch";
+    if (classId == ID_CHECKBOX)
+        return "Checkbox";
+    if (classId == ID_RADIOGROUP)
+        return "RadioGroup";
+    if (classId == ID_SLIDER)
+        return "Slider";
+    if (classId == ID_KNOB)
+        return "Knob";
+    if (classId == ID_INPUT)
+        return "Input";
+    if (classId == ID_TEXTAREA)
+        return "Textarea";
+    if (classId == ID_INPUTOTP)
+        return "InputOTP";
+    if (classId == ID_SELECT)
+        return "Select";
+    if (classId == ID_DATEPICKER)
+        return "DatePicker";
+    if (classId == ID_COLORPICKER)
+        return "ColorPicker";
+    if (classId == ID_COLORSWATCH)
+        return "ColorSwatch";
+    if (classId == ID_FILEDIALOG)
+        return "FileDialog";
+    if (classId == ID_TYPOGRAPHY)
+        return "Typography";
+    if (classId == ID_KBD)
+        return "Kbd";
+    if (classId == ID_PLOT)
+        return "Plot";
+    if (classId == ID_DIALOG)
+        return "Dialog";
+    if (classId == ID_ALERTDIALOG)
+        return "AlertDialog";
+    if (classId == ID_COLORDIALOG)
+        return "ColorDialog";
+    if (classId == ID_POINTER_EVENT)
+        return "PointerEvent";
+    if (classId == ID_KEY_EVENT)
+        return "UIKeyEvent";
+    if (classId == ID_FOCUS_EVENT)
+        return "FocusEvent";
+    if (classId == ID_ACTION_EVENT)
+        return "ActionEvent";
+    if (classId == ID_VALUE_EVENT)
+        return "ValueEvent";
+    if (classId == ID_TREE_EVENT)
+        return "TreeEvent";
+    if (classId == ID_GESTURE_EVENT)
+        return "GestureEvent";
     return "Unknown";
 }

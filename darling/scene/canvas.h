@@ -9,7 +9,7 @@
 #include "lang/mat4.h"
 #include "lang/vec2.h"
 
-// darling/canvas.h — the flat 2D layout root (Legacy: darling/Canvas.java).
+// darling/scene/canvas.h — the flat 2D layout root (Legacy: darling/Canvas.java).
 //
 // One canonical coordinate space the whole UI resolves into: a fixed virtual
 // resolution independent of the framebuffer and backing scale. setLocation

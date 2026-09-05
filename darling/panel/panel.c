@@ -1,4 +1,4 @@
-#include "darling/panel.h"
+#include "darling/panel/panel.h"
 
 #include "annotation/incomplete.h"
 #include "nio/mem.h"
@@ -15,7 +15,7 @@
  * the parent/child tree. Base class of Label/Picture/Scene — every node
  * IS-A Panel with extra payload on top.
  *
- * STRUCT FIELDS (Mirroring darling/panel.h):
+ * STRUCT FIELDS (Mirroring darling/panel/panel.h):
  * ----------------------------------------------------------------------------
  *   Container base;                // Inherited layout/bounds/anchors/flags (see container.h)
  *   uint32_t color;                // Background fill, packed 0xAARRGGBB

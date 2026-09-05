@@ -53,14 +53,42 @@ endif()
 if(NOT TARGET darling)
 add_library(darling STATIC
         c23/add.c
-    darling/canvas.c
+    darling/scene/canvas.c
     darling/compositor.c
     darling/container.c
-    darling/label.c
-    darling/panel.c
-    darling/picture.c
-    darling/rich_label.c
-    darling/scene.c
+    darling/label/label.c
+    darling/panel/panel.c
+    darling/picture/picture.c
+    darling/label/rich_label.c
+    darling/scene/scene.c
+    darling/panel/layeredpanel.c
+    darling/panel/sectionpanel.c
+    darling/button/button.c
+    darling/button/switch.c
+    darling/field/checkbox.c
+    darling/field/radiogroup.c
+    darling/field/slider.c
+    darling/field/knob.c
+    darling/field/input.c
+    darling/field/textarea.c
+    darling/field/inputotp.c
+    darling/field/select.c
+    darling/field/datepicker.c
+    darling/field/colorpicker.c
+    darling/field/colorswatch.c
+    darling/overlay/filedialog.c
+    darling/label/typography.c
+    darling/label/kbd.c
+    darling/plot/plot.c
+    event/pointer.c
+    event/keyevent.c
+    event/focus.c
+    event/action.c
+    event/value.c
+    event/tree.c
+    event/gesture.c
+    event/dispatch.c
+    event/bridge.c
     text/rich_text.c
     render/raster.c
     render/surface.c

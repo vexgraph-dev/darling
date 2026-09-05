@@ -13,8 +13,8 @@
 
 #include "annotation/overview.h"
 #include "buffer/color_buffer.h"
-#include "darling/panel.h"
-#include "darling/scene.h"
+#include "darling/panel/panel.h"
+#include "darling/scene/scene.h"
 #include "input/key.h"
 #include "oop/type.h"
 #include "render/raster.h"

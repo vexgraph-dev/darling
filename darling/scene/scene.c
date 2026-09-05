@@ -1,4 +1,4 @@
-#include "darling/scene.h"
+#include "darling/scene/scene.h"
 
 #include "nio/mem.h"
 #include "oop/type.h"
@@ -14,7 +14,7 @@
  * The scene's virtual size IS its Container w/h — the present pass scales
  * it into whatever the window occupies. Scene2D/Scene3D are dispatch tags.
  *
- * STRUCT FIELDS (Mirroring darling/scene.h):
+ * STRUCT FIELDS (Mirroring darling/scene/scene.h):
  * ----------------------------------------------------------------------------
  *   Scene:                 // The scene root (Panel + mapping mode)
  *     Panel base;          // Inherited layout/bounds/tree state (see panel.h)
@@ -61,7 +61,7 @@
 
 // darling/scene.c — scene root (Legacy: darling/Scene.java).
 
-static Scene *allocScene(uint32_t typeId) {
+static Scene *allocScene(uint64_t typeId) {
     Scene *s = (Scene*) Memory_alloc(typeId, sizeof(Scene));
     if (!s)
         return nullptr;

@@ -1,6 +1,6 @@
-#include "darling/canvas.h"
+#include "darling/scene/canvas.h"
 
-#include "darling/picture.h"
+#include "darling/picture/picture.h"
 #include "nio/mem.h"
 #include "oop/type.h"
 #include "annotation/overview.h"
@@ -15,7 +15,7 @@
  * resolves into, with a fixed virtual resolution, mapping mode, and DPI
  * scale driving projection and visible-rect computation.
  *
- * STRUCT FIELDS (Mirroring darling/canvas.h):
+ * STRUCT FIELDS (Mirroring darling/scene/canvas.h):
  * ----------------------------------------------------------------------------
  *   float virtualWidth;    // Virtual space width (<= 0 = follow framebuffer)
  *   float virtualHeight;   // Virtual space height (<= 0 = follow framebuffer)

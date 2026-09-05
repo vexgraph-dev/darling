@@ -1,8 +1,8 @@
 #include "annotation/overview.h"
 #include "darling/compositor.h"
 #include "darling/container.h"
-#include "darling/panel.h"
-#include "darling/scene.h"
+#include "darling/panel/panel.h"
+#include "darling/scene/scene.h"
 #include "nio/mem.h"
 #include "oop/type.h"
 #include "time/nanotime.h"
@@ -151,7 +151,7 @@ static IOSurfaceChild *recordChildToIOSurface(VkCommandBuffer cb, Panel *child, 
         }
     }
 
-    uint32_t childType = Memory_type(child);
+    uint64_t childType = Memory_type(child);
     bool isScene = (childType == TYPE_SCENE3D_SINGLETON || childType == TYPE_SCENE2D_SINGLETON
                     || childType == TYPE_SCENE_SINGLETON);
 
@@ -358,7 +358,7 @@ void Darling_renderFrame(void *cmdBuffer, int drawW, int drawH, void *userdata) 
             if (rect.z <= 0.0f || rect.w <= 0.0f) continue;
 
             if (nativeContent) {
-                uint32_t cType = Memory_type(child);
+                uint64_t cType = Memory_type(child);
                 if (cType != TYPE_SCENE3D_SINGLETON && cType != TYPE_SCENE2D_SINGLETON && cType != TYPE_SCENE_SINGLETON) {
                     continue;
                 }
@@ -375,7 +375,7 @@ void Darling_renderFrame(void *cmdBuffer, int drawW, int drawH, void *userdata) 
             if (py + ph > (float)drawH) ph = (float)drawH - py;
             if (pw <= 0.0f || ph <= 0.0f) continue;
 
-            uint32_t childType = Memory_type(child);
+            uint64_t childType = Memory_type(child);
             bool isScene = (childType == TYPE_SCENE3D_SINGLETON || childType == TYPE_SCENE2D_SINGLETON
                             || childType == TYPE_SCENE_SINGLETON);
             if (isScene) {

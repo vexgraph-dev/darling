@@ -1,5 +1,6 @@
 #include "darling/container.h"
 
+#include "darling-type.h"
 #include "nio/mem.h"
 #include "oop/type.h"
 #include "annotation/overview.h"
