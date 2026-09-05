@@ -1,8 +1,10 @@
 #include "darling/field/input.h"
 
+#include <math.h>
 #include <string.h>
 
 #include "annotation/incomplete.h"
+#include "darling/anim/anim.h"
 #include "nio/mem.h"
 #include "oop/type.h"
 #include "annotation/overview.h"
@@ -15,8 +17,20 @@
  * Single-line text input shell: Panel layout plus an owned text buffer
  * bounded by cap, with change/submit callback slots for later wiring.
  *
- * STRUCT FIELDS (Mirroring darling/field/input.h):
+ * THE CARET (its own part — field->caret->verb):
  * ----------------------------------------------------------------------------
+ * The caret is a VIEW over typing state, never pierced directly. It owns
+ * mode (BLINK terminal / SOLID always-on / GLIDE Word-style eased slide),
+ * color, blink half-period, the blink clock/phase, and the painted x which
+ * eases toward the owner-measured target in GLIDE mode (ANIM_EASE_OUT over
+ * 80ms via Anim_eval — the animation system, reused, not reinvented).
+ * Position resolution (cursor index -> x) lands with the caret walker; the
+ * owner places the target with caret_setTarget after measuring. Typing
+ * restarts the blink phase shown. Tick on Thread 0 next to layout.
+ *
+ * STRUCT FIELDS (Mirroring darling/field/input.h — same part banners):
+ * ----------------------------------------------------------------------------
+ *   --- Input core (owner fields) ---
  *   Panel base;              // Inherited layout, bounds, and hierarchy state
  *   char *text;              // Owned UTF-8 buffer (bounded by cap)
  *   size_t cap;              // Max stored chars excluding NUL
@@ -25,9 +39,22 @@
  *   bool readonly;           // Reject edits, still selectable
  *   int32_t cursor;          // Caret offset into text
  *   Font *font;              // Optional SDF font descriptor (borrowed)
+ *   --- Caret part (views only) ---
+ *   int caretMode;           // BLINK/SOLID/GLIDE (default BLINK)
+ *   uint32_t caretColor;     // Packed 0xRRGGBBAA (default white)
+ *   float caretBlinkPeriod;  // Half-cycle seconds (default 0.53)
+ *   double caretClock;       // Blink timer (tick advances)
+ *   bool caretShown;         // Current blink phase (view)
+ *   float caretX;            // Painted x (glides to target)
+ *   float caretTargetX;      // Owner-measured x (view target)
+ *   Panel *caretView;        // Borrowed visual (null = thin rect)
+ *   float caretOpacity;      // User opacity 0..1 (× blink phase)
+ *   --- Input core callbacks (owner fields, continued) ---
  *   Input_ChangeFn onChange; // Edit callback; nullptr = none
  *   Input_SubmitFn onSubmit; // Commit callback; nullptr = none
  *   void *ctx;               // Callback context (borrowed)
+ *   Input_MeasureFn measurer;// Index->x hook (null until the walker lands)
+ *   void *measureCtx;        // Measure context (borrowed)
  *
  * FUNCTION REGISTRY:
  * ----------------------------------------------------------------------------
@@ -40,6 +67,7 @@
  *   - Input_eraseChar(inp)
  *
  * Setters:
+ *   - Input_goTo(inp, index)
  *   - Input_setText(inp, text)
  *   - Input_setCap(inp, cap)
  *   - Input_setPlaceholder(inp, placeholder)
@@ -50,7 +78,18 @@
  *   - Input_setOnChange(inp, fn)
  *   - Input_setOnSubmit(inp, fn)
  *   - Input_setCtx(inp, ctx)
+ *   - Input_setMeasurer(inp, fn, ctx)
  *   - Input_free(inp)
+ *
+ * Caret part:
+ *   - Input_caret_setMode(inp, mode)
+ *   - Input_caret_setColor(inp, color)
+ *   - Input_caret_setBlinkPeriod(inp, seconds)
+ *   - Input_caret_setTarget(inp, x)
+ *   - Input_caret_setView(inp, view)
+ *   - Input_caret_setOpacity(inp, opacity)
+ *   - Input_caret_placeView(inp, view, centerY)
+ *   - Input_caret_tick(inp, dt)
  *
  * Getters:
  *   - Input_getText(inp)
@@ -63,6 +102,17 @@
  *   - Input_getOnChange(inp)
  *   - Input_getOnSubmit(inp)
  *   - Input_getCtx(inp)
+ *   - Input_getMeasurer(inp)
+ *   - Input_getMeasureContext(inp)
+ *   - Input_caret_getMode(inp)
+ *   - Input_caret_getColor(inp)
+ *   - Input_caret_getBlinkPeriod(inp)
+ *   - Input_caret_getTarget(inp)
+ *   - Input_caret_getX(inp)
+ *   - Input_caret_isShown(inp)
+ *   - Input_caret_getView(inp)
+ *   - Input_caret_getOpacity(inp)
+ *   - Input_caret_getEffectiveOpacity(inp)
  * ============================================================================
  */
 
@@ -90,9 +140,20 @@ Input *Input_0(void) {
     (*inp).readonly = false;
     (*inp).cursor = 0;
     (*inp).font = nullptr;
+    (*inp).caretMode = INPUT_CARET_BLINK;
+    (*inp).caretColor = 0xFFFFFFFFu;
+    (*inp).caretBlinkPeriod = INPUT_CARET_DEFAULT_PERIOD;
+    (*inp).caretClock = 0.0;
+    (*inp).caretShown = true;
+    (*inp).caretX = 0.0f;
+    (*inp).caretTargetX = 0.0f;
+    (*inp).caretView = nullptr;
+    (*inp).caretOpacity = 1.0f;
     (*inp).onChange = nullptr;
     (*inp).onSubmit = nullptr;
     (*inp).ctx = nullptr;
+    (*inp).measurer = nullptr;
+    (*inp).measureCtx = nullptr;
     return inp;
 }
 
@@ -166,6 +227,10 @@ void Input_setText(Input *inp, const char *text) {
     char *cur = (*inp).text;
     size_t curLen = cur ? strlen(cur) : 0;
     (*inp).cursor = clampCursor(curLen, (*inp).cursor);
+    if ((*inp).measurer)
+        Input_caret_setTarget(inp, (*inp).measurer((*inp).measureCtx, (*inp).cursor));
+    (*inp).caretClock = 0.0; // typing restarts the blink phase shown
+    (*inp).caretShown = true;
     markDirty(inp);
 }
 
@@ -213,11 +278,21 @@ void Input_setReadonly(Input *inp, bool readonly) {
 }
 
 void Input_setCursor(Input *inp, int32_t cursor) {
+    Input_goTo(inp, cursor); // moving to an index IS going to it
+}
+
+// The Word-inspired goTo: every index move re-measures the caret target
+// and either blits (BLINK/SOLID) or glides (GLIDE) to it.
+void Input_goTo(Input *inp, int32_t index) {
     if (!inp)
         return;
     char *cur = (*inp).text;
     size_t len = cur ? strlen(cur) : 0;
-    (*inp).cursor = clampCursor(len, cursor);
+    (*inp).cursor = clampCursor(len, index);
+    if ((*inp).measurer)
+        Input_caret_setTarget(inp, (*inp).measurer((*inp).measureCtx, (*inp).cursor));
+    (*inp).caretClock = 0.0; // arriving restarts the blink phase shown
+    (*inp).caretShown = true;
     markDirty(inp);
 }
 
@@ -246,6 +321,108 @@ void Input_setCtx(Input *inp, void *ctx) {
     (*inp).ctx = ctx;
 }
 
+void Input_setMeasurer(Input *inp, Input_MeasureFn fn, void *ctx) {
+    if (!inp)
+        return;
+    (*inp).measurer = fn;
+    (*inp).measureCtx = ctx;
+}
+
+// ============================================================================
+// CARET PART
+// ============================================================================
+
+void Input_caret_setMode(Input *inp, int mode) {
+    if (!inp)
+        return;
+    if (mode != INPUT_CARET_BLINK && mode != INPUT_CARET_SOLID && mode != INPUT_CARET_GLIDE)
+        return;
+    (*inp).caretMode = mode;
+    if (mode != INPUT_CARET_BLINK) {
+        (*inp).caretShown = true; // SOLID/GLIDE never blink away
+        if (mode == INPUT_CARET_SOLID)
+            (*inp).caretX = (*inp).caretTargetX;
+    }
+    markDirty(inp);
+}
+
+void Input_caret_setColor(Input *inp, uint32_t color) {
+    if (!inp)
+        return;
+    (*inp).caretColor = color;
+    markDirty(inp);
+}
+
+void Input_caret_setBlinkPeriod(Input *inp, float seconds) {
+    if (!inp || seconds <= 0.0f)
+        return;
+    (*inp).caretBlinkPeriod = seconds;
+    markDirty(inp);
+}
+
+void Input_caret_setTarget(Input *inp, float x) {
+    if (!inp)
+        return;
+    (*inp).caretTargetX = x;
+    if ((*inp).caretMode != INPUT_CARET_GLIDE)
+        (*inp).caretX = x;
+    markDirty(inp);
+}
+
+void Input_caret_setView(Input *inp, Panel *view) {
+    if (!inp)
+        return;
+    // Borrowed view, detach-only: never freed, never reparented here.
+    // Null restores the default thin rect painted by the pump.
+    (*inp).caretView = view;
+    markDirty(inp);
+}
+
+void Input_caret_setOpacity(Input *inp, float opacity) {
+    if (!inp)
+        return;
+    if (opacity < 0.0f)
+        opacity = 0.0f;
+    if (opacity > 1.0f)
+        opacity = 1.0f;
+    (*inp).caretOpacity = opacity;
+    markDirty(inp);
+}
+
+void Input_caret_placeView(Input *inp, Panel *view, float centerY) {
+    if (!inp || !view)
+        return;
+    // Centered, of course: the view's middle lands on (caretX, centerY).
+    Container *c = &(*view).base;
+    float w = Container_getWidth(c);
+    float h = Container_getHeight(c);
+    Container_setLocation(c, (*inp).caretX - w * 0.5f, centerY - h * 0.5f);
+}
+
+void Input_caret_tick(Input *inp, double dt) {
+    if (!inp || dt <= 0.0)
+        return;
+    if ((*inp).caretMode == INPUT_CARET_BLINK) {
+        (*inp).caretClock += dt;
+        float period = (*inp).caretBlinkPeriod;
+        if (period <= 0.0f)
+            period = INPUT_CARET_DEFAULT_PERIOD;
+        float phase = fmodf((float)(*inp).caretClock, period * 2.0f);
+        (*inp).caretShown = phase < period; // float-exact: == period hides
+        markDirty(inp);
+    } else if ((*inp).caretMode == INPUT_CARET_GLIDE) {
+        float k = (float)(dt / (double)INPUT_CARET_GLIDE_TIME);
+        if (k > 1.0f)
+            k = 1.0f;
+        float e = Anim_eval(ANIM_EASE_OUT, k);
+        float next = (*inp).caretX + ((*inp).caretTargetX - (*inp).caretX) * e;
+        if (next != (*inp).caretX) {
+            (*inp).caretX = next;
+            markDirty(inp);
+        }
+    }
+}
+
 void Input_free(Input *inp) {
     if (!inp)
         return;
@@ -261,6 +438,8 @@ void Input_free(Input *inp) {
     (*inp).onChange = nullptr;
     (*inp).onSubmit = nullptr;
     (*inp).ctx = nullptr;
+    (*inp).measurer = nullptr;
+    (*inp).measureCtx = nullptr;
     Memory_free(inp);
 }
 
@@ -306,4 +485,50 @@ Input_SubmitFn Input_getOnSubmit(const Input *inp) {
 
 void *Input_getCtx(const Input *inp) {
     return inp ? (*inp).ctx : nullptr;
+}
+
+Input_MeasureFn Input_getMeasurer(const Input *inp) {
+    return inp ? (*inp).measurer : nullptr;
+}
+
+void *Input_getMeasureContext(const Input *inp) {
+    return inp ? (*inp).measureCtx : nullptr;
+}
+
+int Input_caret_getMode(const Input *inp) {
+    return inp ? (*inp).caretMode : INPUT_CARET_BLINK;
+}
+
+uint32_t Input_caret_getColor(const Input *inp) {
+    return inp ? (*inp).caretColor : 0xFFFFFFFFu;
+}
+
+float Input_caret_getBlinkPeriod(const Input *inp) {
+    return inp ? (*inp).caretBlinkPeriod : INPUT_CARET_DEFAULT_PERIOD;
+}
+
+float Input_caret_getTarget(const Input *inp) {
+    return inp ? (*inp).caretTargetX : 0.0f;
+}
+
+float Input_caret_getX(const Input *inp) {
+    return inp ? (*inp).caretX : 0.0f;
+}
+
+bool Input_caret_isShown(const Input *inp) {
+    return inp && (*inp).caretShown;
+}
+
+Panel *Input_caret_getView(const Input *inp) {
+    return inp ? (*inp).caretView : nullptr;
+}
+
+float Input_caret_getOpacity(const Input *inp) {
+    return inp ? (*inp).caretOpacity : 1.0f;
+}
+
+float Input_caret_getEffectiveOpacity(const Input *inp) {
+    if (!inp || !(*inp).caretShown)
+        return 0.0f;
+    return (*inp).caretOpacity;
 }

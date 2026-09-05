@@ -10,10 +10,36 @@
 #include "font/font.h"
 
 // Single-line text input: Panel layout plus an owned bounded buffer.
+//
+// THE CARET (its own part, views only — never pierce it):
+// The caret is Input's owned sub-object: mode, color, blink timing, and the
+// gliding x position. It does NOT measure text — the owner (later the caret
+// walker) places it with caret_setTarget after measuring the cursor run.
+//   BLINK: terminal caret, 50%-duty blink at blinkPeriod.
+//   SOLID: always on, snaps to target.
+//   GLIDE: always on, eases to target (Word-style) via tick.
+// The caret VISUAL is a replaceable view: caretView is a borrowed Panel*
+// (null = default thin rect painted by the pump). Games swap in anything —
+// a textured quad, an animated sprite, a Scene — and the caret centers it
+// on caretX for them via caret_placeView. Opacity folds blink × user value
+// into one effective number the pump paints with.
+// Tick it on Thread 0 next to layout; paint at caret_getX when
+// caret_isShown. Typing (setText/setCursor) restarts the blink phase shown.
+#define INPUT_CARET_BLINK 0
+#define INPUT_CARET_SOLID 1
+#define INPUT_CARET_GLIDE 2
+
+#define INPUT_CARET_DEFAULT_PERIOD 0.53f
+#define INPUT_CARET_GLIDE_TIME 0.08f
+
 typedef void (*Input_ChangeFn)(void *ctx);
 typedef void (*Input_SubmitFn)(void *ctx);
+// Measures the x of a cursor index (owner/walker fills this in; the caret
+// walker will own it permanently). Null = no measurement, target holds.
+typedef float (*Input_MeasureFn)(void *ctx, int32_t index);
 
 typedef struct Input {
+    // --- Input core (owner fields: text state, not any part) ---
     Panel base;
     char *text;
     size_t cap;
@@ -22,9 +48,22 @@ typedef struct Input {
     bool readonly;
     int32_t cursor;
     Font *font;
+    // --- Caret part (field->caret->verb; views only, never pierce) ---
+    int caretMode;          // BLINK/SOLID/GLIDE (default BLINK)
+    uint32_t caretColor;    // packed 0xRRGGBBAA
+    float caretBlinkPeriod; // half-cycle seconds (default 0.53)
+    double caretClock;      // blink timer (tick advances)
+    bool caretShown;        // current blink phase (view)
+    float caretX;           // painted x (glides to target)
+    float caretTargetX;     // owner-measured x (view target)
+    Panel *caretView;       // borrowed visual (null = thin rect)
+    float caretOpacity;     // user opacity 0..1 (× blink phase)
+    // --- Input core callbacks (owner fields, continued) ---
     Input_ChangeFn onChange;
     Input_SubmitFn onSubmit;
     void *ctx;
+    Input_MeasureFn measurer; // index->x hook (null until the walker lands)
+    void *measureCtx;
 } Input;
 
 Input *Input_0(void);
@@ -35,6 +74,9 @@ Input *Input_2(Panel *parent, size_t cap);
 // Core editing (stubs: buffer surgery lands with the caret walker).
 void Input_insertChar(Input *inp, char c);
 void Input_eraseChar(Input *inp);
+// Move to an index: clamps, restarts blink, re-measures the caret target,
+// then blits (BLINK/SOLID) or glides (GLIDE) — the Word-inspired goTo.
+void Input_goTo(Input *inp, int32_t index);
 
 void Input_free(Input *inp);
 
@@ -48,6 +90,17 @@ void Input_setFont(Input *inp, Font *font);
 void Input_setOnChange(Input *inp, Input_ChangeFn fn);
 void Input_setOnSubmit(Input *inp, Input_SubmitFn fn);
 void Input_setCtx(Input *inp, void *ctx);
+void Input_setMeasurer(Input *inp, Input_MeasureFn fn, void *ctx);
+
+// Caret part (field->caret->verb, ergonomic — the caret is a view).
+void Input_caret_setMode(Input *inp, int mode);
+void Input_caret_setColor(Input *inp, uint32_t color);
+void Input_caret_setBlinkPeriod(Input *inp, float seconds);
+void Input_caret_setTarget(Input *inp, float x);
+void Input_caret_setView(Input *inp, Panel *view);
+void Input_caret_setOpacity(Input *inp, float opacity);
+void Input_caret_placeView(Input *inp, Panel *view, float centerY);
+void Input_caret_tick(Input *inp, double dt);
 
 const char *Input_getText(const Input *inp);
 size_t Input_getCap(const Input *inp);
@@ -59,5 +112,18 @@ Font *Input_getFont(const Input *inp);
 Input_ChangeFn Input_getOnChange(const Input *inp);
 Input_SubmitFn Input_getOnSubmit(const Input *inp);
 void *Input_getCtx(const Input *inp);
+Input_MeasureFn Input_getMeasurer(const Input *inp);
+void *Input_getMeasureContext(const Input *inp);
+
+// Caret-part getters (views over caret state).
+int Input_caret_getMode(const Input *inp);
+uint32_t Input_caret_getColor(const Input *inp);
+float Input_caret_getBlinkPeriod(const Input *inp);
+float Input_caret_getTarget(const Input *inp);
+float Input_caret_getX(const Input *inp);
+bool Input_caret_isShown(const Input *inp);
+Panel *Input_caret_getView(const Input *inp);
+float Input_caret_getOpacity(const Input *inp);
+float Input_caret_getEffectiveOpacity(const Input *inp);
 
 #endif
