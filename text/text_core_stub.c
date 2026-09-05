@@ -14,6 +14,8 @@
  * ============================================================================
  * non-Apple fallback. No native raster here;
  *
+ * STRUCT FIELDS: none — procedural (stateless TextCore seam fallback).
+ *
  * FUNCTION REGISTRY:
  * ----------------------------------------------------------------------------
  * Core Functions:

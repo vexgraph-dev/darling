@@ -6,10 +6,17 @@
 ;;OVERVIEW
 /**
  * ============================================================================
- * MODULE: Raster (render/raster.c)
+ * CLASS: Raster (stateless software rasterizer + local pixel type)
  * LEVEL: L2 — Behavior (software rasterizer behavior API)
  * ============================================================================
- * the software rasterizer (pixels before Vulkan).
+ * The software rasterizer (pixels before Vulkan): pure painters over any
+ * 4-channel Buffer, clipped to bounds, zero-alloc, no retained state.
+ *
+ * STRUCT FIELDS (local to this file):
+ * ----------------------------------------------------------------------------
+ *   RGBA {                 // Stack-only packed pixel helper (no retained state)
+ *     uint8_t r, g, b, a;  // Red, green, blue, alpha channels
+ *   }
  *
  * FUNCTION REGISTRY:
  * ----------------------------------------------------------------------------

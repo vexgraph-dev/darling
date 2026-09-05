@@ -11,10 +11,19 @@
 ;;OVERVIEW
 /**
  * ============================================================================
- * MODULE: File (io/file.c)
+ * CLASS: File (stdio-backed file handle block)
  * LEVEL: L2 — Behavior (file I/O behavior API)
  * ============================================================================
- * the File class, ported from io/File.java.
+ * The File class: a self-describing Memory block wrapping a stdio stream
+ * with a cached size, read/write cursor, and legacy FILE_MODE_* flags.
+ *
+ * STRUCT FIELDS (Mirroring io/file.h):
+ * ----------------------------------------------------------------------------
+ *   char name[FILE_PATH_MAX]; // Owned path string (up to FILE_PATH_MAX)
+ *   FILE *handle;          // Underlying stdio stream handle
+ *   int64_t size;          // Cached file size in bytes
+ *   int64_t position;      // Read/write cursor position
+ *   uint32_t mode;         // FILE_MODE_READ/WRITE/APPEND/CREATE/TRUNCATE flags
  *
  * FUNCTION REGISTRY:
  * ----------------------------------------------------------------------------

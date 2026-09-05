@@ -18,6 +18,8 @@
  * ============================================================================
  * pure-C bridge for IOSurface panel operations.
  *
+ * STRUCT FIELDS: none — procedural (pure-C IOSurface panel glue, no struct).
+ *
  * FUNCTION REGISTRY:
  * ----------------------------------------------------------------------------
  * Constructors:

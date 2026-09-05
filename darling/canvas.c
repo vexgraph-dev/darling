@@ -8,10 +8,19 @@
 ;;OVERVIEW
 /**
  * ============================================================================
- * MODULE: Canvas (darling/canvas.c)
+ * CLASS: Canvas
  * LEVEL: L2 — Behavior (UI layout/projection behavior API)
  * ============================================================================
- * the flat 2D layout root (Legacy: darling/Canvas.java).
+ * The flat 2D layout root: one canonical coordinate space the whole UI
+ * resolves into, with a fixed virtual resolution, mapping mode, and DPI
+ * scale driving projection and visible-rect computation.
+ *
+ * STRUCT FIELDS (Mirroring darling/canvas.h):
+ * ----------------------------------------------------------------------------
+ *   float virtualWidth;    // Virtual space width (<= 0 = follow framebuffer)
+ *   float virtualHeight;   // Virtual space height (<= 0 = follow framebuffer)
+ *   int mode;              // CANVAS_MODE_STRETCH/FIT/PIXEL mapping mode
+ *   float dpiScale;        // Backing-store DPI scale factor
  *
  * FUNCTION REGISTRY:
  * ----------------------------------------------------------------------------

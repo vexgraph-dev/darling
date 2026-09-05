@@ -20,6 +20,8 @@
  * ============================================================================
  * native line raster seam.
  *
+ * STRUCT FIELDS: none — procedural (CoreText line raster shim, no struct).
+ *
  * FUNCTION REGISTRY:
  * ----------------------------------------------------------------------------
  * Core Functions:

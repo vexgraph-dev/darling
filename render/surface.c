@@ -10,10 +10,21 @@
 ;;OVERVIEW
 /**
  * ============================================================================
- * MODULE: Surface (render/surface.c)
+ * CLASS: Surface (double-buffered panel swapchain)
  * LEVEL: L2 — Behavior (double-buffered surface behavior API)
  * ============================================================================
- * a scissored, double-buffered stamp of the master canvas.
+ * A scissored, double-buffered stamp of the master canvas: producers paint
+ * the back buffer and flip one atomic word while the compositor stamps only
+ * the front, so a mid-paint stamp can never tear.
+ *
+ * STRUCT FIELDS (local to this file):
+ * ----------------------------------------------------------------------------
+ *   Surface {              // Mini-swapchain per panel (opaque, see surface.h)
+ *     Buffer *canvas[2];   // Back/front paint buffers (ColorBuffer pair)
+ *     _Atomic int front;   // 0 or 1: which canvas the compositor may read
+ *     int x;               // Scissor origin X on the master canvas
+ *     int y;               // Scissor origin Y on the master canvas
+ *   }
  *
  * FUNCTION REGISTRY:
  * ----------------------------------------------------------------------------

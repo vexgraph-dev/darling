@@ -28,6 +28,15 @@
  * Retained-mode UI compositor connecting Darling UI nodes, IOSurface overlays,
  * and Vulkan scene viewports into the host window and presentation loop.
  *
+ * STRUCT FIELDS (local to this file):
+ * ----------------------------------------------------------------------------
+ *   IOSurfaceChild {       // Per-child IOSurface render target cache entry
+ *     Panel *panel;        // Owning Darling panel this entry renders
+ *     VkIOSurface *surf;   // IOSurface-backed Vulkan image (resized on drift)
+ *     VkFramebuffer fb;    // Framebuffer targeting surf's image
+ *     bool valid;          // True once the entry holds a current render
+ *   }
+ *
  * FUNCTION REGISTRY:
  * ----------------------------------------------------------------------------
  * Core Functions:

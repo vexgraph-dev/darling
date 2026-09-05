@@ -13,6 +13,8 @@
  * ============================================================================
  * alpha RGBA8 through the OS text stack,
  *
+ * STRUCT FIELDS: none — procedural (AppKit/CoreText font shim, no struct).
+ *
  * FUNCTION REGISTRY:
  * ----------------------------------------------------------------------------
  * Core Functions:

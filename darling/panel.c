@@ -8,10 +8,23 @@
 ;;OVERVIEW
 /**
  * ============================================================================
- * MODULE: Panel (darling/panel.c)
+ * CLASS: Panel (embeds Container)
  * LEVEL: L2 — Behavior (UI panel hierarchy behavior API)
  * ============================================================================
  * the UI panel: Container layout + background color +
+ * the parent/child tree. Base class of Label/Picture/Scene — every node
+ * IS-A Panel with extra payload on top.
+ *
+ * STRUCT FIELDS (Mirroring darling/panel.h):
+ * ----------------------------------------------------------------------------
+ *   Container base;                // Inherited layout/bounds/anchors/flags (see container.h)
+ *   uint32_t color;                // Background fill, packed 0xAARRGGBB
+ *   void *filters;                 // Render-graph slot (@Draft placeholder, not yet wired)
+ *   void *image;                   // Shared payload pointer (aliased through views)
+ *   Panel_RenderFn renderHandler;  // Draw override (@Override slot); nullptr = solid quad
+ *   struct Panel *source;          // Canonical panel this view proxies; nullptr = owns data
+ *   struct Panel *parent;          // Tree parent; nullptr = root
+ *   List *children;                // Owned child panels (List of Panel*)
  *
  * FUNCTION REGISTRY:
  * ----------------------------------------------------------------------------

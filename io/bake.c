@@ -6,10 +6,24 @@
 ;;OVERVIEW
 /**
  * ============================================================================
- * MODULE: Bake (io/bake.c)
+ * CLASS: Bake (offline asset bake records)
  * LEVEL: L3 — Module Code (offline asset bake tool)
  * ============================================================================
- * Offline asset compilation pipeline
+ * Offline asset compilation pipeline: converts raw source assets into the
+ * zero-copy binary .anti format mapped directly into RAM via mmap.
+ *
+ * STRUCT FIELDS (Mirroring io/bake.h + local to this file):
+ * ----------------------------------------------------------------------------
+ *   AntiAssetHeader {      // Zero-copy file header (see io/bake.h)
+ *     uint32_t magic;      // ANTI_ASSET_MAGIC ("ANTI")
+ *     uint32_t version;    // Format version
+ *     uint32_t type;       // Asset kind (1 = MESH)
+ *     uint32_t payloadBytes; // Payload length in bytes after the header
+ *   }
+ *   BakedVertex {          // Local test-mesh vertex payload record
+ *     float x, y, z;       // Position
+ *     float r, g, b, a;    // Color
+ *   }
  *
  * FUNCTION REGISTRY:
  * ----------------------------------------------------------------------------

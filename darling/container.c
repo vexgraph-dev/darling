@@ -7,10 +7,27 @@
 ;;OVERVIEW
 /**
  * ============================================================================
- * MODULE: Container (darling/container.c)
+ * CLASS: Container
  * LEVEL: L2 — Behavior (UI layout base behavior API)
  * ============================================================================
- * layout base of every darling node
+ * Layout base of every darling node: position, size, scale, the two-anchor
+ * system, percentage placement, z-order and the visible/enabled/dirty flags.
+ *
+ * STRUCT FIELDS (Mirroring darling/container.h):
+ * ----------------------------------------------------------------------------
+ *   float x, y, w, h;      // Position + size in parent units
+ *   float scaleX, scaleY;  // Axis scale multipliers
+ *   uint32_t anchors;      // Low byte parentAnchor 0..8, high byte selfAnchor+1
+ *   int32_t pivot;         // PIVOT_REFERENCE_* source-of-truth point
+ *   float percentX, percentY; // Percentage placement (-1 = unset)
+ *   int32_t z;             // Z-order within parent
+ *   uint8_t visible;       // Visibility flag
+ *   uint8_t enabled;       // Enabled flag
+ *   uint8_t dirty;         // Layout-dirty flag
+ *   uint8_t clipping;      // Clip-children flag
+ *   float baseW, baseH;    // Parent size at last layout (resize-delta reference)
+ *   float minW, minH;      // Size constraints (default 0,0)
+ *   float maxW, maxH;      // Size constraints (default 0 = unset)
  *
  * FUNCTION REGISTRY:
  * ----------------------------------------------------------------------------

@@ -8,10 +8,17 @@
 ;;OVERVIEW
 /**
  * ============================================================================
- * MODULE: Mmap (io/mmap.c)
+ * CLASS: MemoryMap (read-only mapped file handle)
  * LEVEL: L2 — Behavior (memory-mapped file I/O behavior API)
  * ============================================================================
- * Zero-copy read-only memory mapped file utility.
+ * Zero-copy read-only memory mapped file utility: address space without
+ * physical RAM, paged in on demand via CPU/GPU page faults.
+ *
+ * STRUCT FIELDS (Mirroring io/mmap.h):
+ * ----------------------------------------------------------------------------
+ *   void *data;            // Mapped base address (nullptr when invalid)
+ *   size_t size;           // Mapped length in bytes (0 when invalid)
+ *   bool valid;            // True once the mapping succeeded
  *
  * FUNCTION REGISTRY:
  * ----------------------------------------------------------------------------

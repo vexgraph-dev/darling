@@ -25,6 +25,8 @@
  * ============================================================================
  * headless baked-font installer CLI.
  *
+ * STRUCT FIELDS: none — procedural (CLI harness, no struct).
+ *
  * FUNCTION REGISTRY:
  * ----------------------------------------------------------------------------
  * Core Functions:

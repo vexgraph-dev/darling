@@ -9,10 +9,28 @@
 ;;OVERVIEW
 /**
  * ============================================================================
- * MODULE: Rich_text (text/rich_text.c)
+ * CLASS: RichText (styled text layout model)
  * LEVEL: L2 — Behavior (rich text layout behavior API)
  * ============================================================================
- * Core subsystem implementation for Rich_text.
+ * Styled rich-text layout model: a raw UTF-8 string plus style dictionary,
+ * run list, and laid-out glyph quads rendered through the SDF atlas path.
+ *
+ * STRUCT FIELDS (Mirroring text/rich_text.h):
+ * ----------------------------------------------------------------------------
+ *   RichText {             // Owned layout model (see text/rich_text.h)
+ *     char *rawString;     // Owned UTF-8 source string
+ *     TextStyle *styles;   // Style dictionary entries
+ *     size_t styleCapacity; // Style dictionary capacity
+ *     TextRun *runs;       // Shaped run list
+ *     size_t runCount;     // Active run count
+ *     size_t runCapacity;  // Run array capacity
+ *     TextQuad *quads;     // Laid-out glyph quads for the renderer
+ *     size_t quadCount;    // Active quad count
+ *     size_t quadCapacity; // Quad array capacity
+ *     float layoutWidth;   // Last laid-out width
+ *     float layoutHeight;  // Last laid-out height
+ *     WrapMode wrapMode;   // WRAP_NONE/WORD/CHAR line-wrap policy
+ *   }
  *
  * FUNCTION REGISTRY:
  * ----------------------------------------------------------------------------

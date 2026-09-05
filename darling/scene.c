@@ -7,10 +7,22 @@
 ;;OVERVIEW
 /**
  * ============================================================================
- * MODULE: Scene (darling/scene.c)
+ * CLASS: Scene (embeds Panel; Scene2D/Scene3D embed Scene)
  * LEVEL: L2 — Behavior (UI scene root behavior API)
  * ============================================================================
- * the scene root (Legacy: darling/Scene.java).
+ * The scene root: Panel hierarchy state plus a virtual-size mapping mode.
+ * The scene's virtual size IS its Container w/h — the present pass scales
+ * it into whatever the window occupies. Scene2D/Scene3D are dispatch tags.
+ *
+ * STRUCT FIELDS (Mirroring darling/scene.h):
+ * ----------------------------------------------------------------------------
+ *   Scene:                 // The scene root (Panel + mapping mode)
+ *     Panel base;          // Inherited layout/bounds/tree state (see panel.h)
+ *     int32_t mode;        // SCENE_MODE_STRETCH/FIT/PIXEL mapping mode
+ *   Scene2D:               // 2D dispatch tag, no extra payload
+ *     Scene base;          // Embedded scene root
+ *   Scene3D:               // 3D dispatch tag, no extra payload
+ *     Scene base;          // Embedded scene root
  *
  * FUNCTION REGISTRY:
  * ----------------------------------------------------------------------------

@@ -7,10 +7,17 @@
 ;;OVERVIEW
 /**
  * ============================================================================
- * MODULE: Rich_label (darling/rich_label.c)
+ * CLASS: RichLabel (inherits Panel)
  * LEVEL: L2 — Behavior (rich text UI view behavior API)
  * ============================================================================
- * Core subsystem implementation for Rich_label.
+ * Retained-mode rich-text view: a Panel hosting a RichText layout model with
+ * an inherited wrap mode, rendered through the SDF atlas path.
+ *
+ * STRUCT FIELDS (Mirroring darling/rich_label.h):
+ * ----------------------------------------------------------------------------
+ *   Panel base;            // Inherited layout, bounds, and hierarchy state
+ *   RichText *textModel;   // Owned styled-text layout model (see rich_text.h)
+ *   WrapMode wrapMode;     // Line-wrap policy inherited by the layout engine
  *
  * FUNCTION REGISTRY:
  * ----------------------------------------------------------------------------

@@ -9,10 +9,27 @@
 ;;OVERVIEW
 /**
  * ============================================================================
- * MODULE: Panel_cocoa (objc/panel_cocoa.m)
+ * CLASS: PanelCocoa (IOSurface-backed panel shim)
  * LEVEL: L4 — Self-Management (OS IOSurface/CALayer panel shim)
  * ============================================================================
- * IOSurface-backed panel compositor.
+ * IOSurface-backed panel compositor: each cocoa-backed panel owns a GPU
+ * buffer plus a CALayer target, with the panel subtree painted into the
+ * surface and composited by AppKit.
+ *
+ * STRUCT FIELDS (local to this file):
+ * ----------------------------------------------------------------------------
+ *   PanelEntry {           // Panel * -> PanelCocoa * registry row
+ *     void *panel;         // Panel * key (opaque to the ObjC side)
+ *     PanelCocoa *pc;      // Backing value for the key
+ *   }
+ *   PanelCocoa {           // Opaque IOSurface backing (see panel_cocoa.h)
+ *     void *panel;         // Panel * (opaque to ObjC side)
+ *     IOSurfaceRef surface; // GPU buffer backing (max-size allocation)
+ *     CALayer *layer;      // AppKit composite target
+ *     int width, height;   // Current display size shown in the window
+ *     int maxWidth, maxHeight; // Max IOSurface allocation (never reallocates)
+ *     _Atomic bool dirty;  // Repaint-needed flag
+ *   }
  *
  * FUNCTION REGISTRY:
  * ----------------------------------------------------------------------------
