@@ -21,8 +21,8 @@ elseif(UNIX)
 endif()
 
 # Check upstream dependencies (if not already provided by parent build)
-if(NOT TARGET vexspoke OR NOT TARGET hotcwap)
-    option(DARLING_USE_UPSTREAM "Depend on vexspoke + hotcwap via FetchContent" OFF)
+if(NOT TARGET vexspoke OR NOT TARGET hotcwap OR NOT TARGET graphvex)
+    option(DARLING_USE_UPSTREAM "Depend on vexspoke + hotcwap + graphvex via FetchContent" OFF)
     if(DARLING_USE_UPSTREAM)
         include(FetchContent)
         if(NOT TARGET vexspoke)
@@ -39,12 +39,20 @@ if(NOT TARGET vexspoke OR NOT TARGET hotcwap)
                 GIT_TAG main
             )
         endif()
-        FetchContent_MakeAvailable(vexspoke hotcwap)
+        if(NOT TARGET graphvex)
+            FetchContent_Declare(
+                graphvex
+                GIT_REPOSITORY https://github.com/vexgraph-dev/graphvex.git
+                GIT_TAG main
+            )
+        endif()
+        FetchContent_MakeAvailable(vexspoke hotcwap graphvex)
     endif()
 endif()
 
 if(NOT TARGET darling)
 add_library(darling STATIC
+        c23/add.c
     darling/canvas.c
     darling/compositor.c
     darling/container.c
@@ -53,19 +61,11 @@ add_library(darling STATIC
     darling/picture.c
     darling/rich_label.c
     darling/scene.c
-    font/font.c
-    font/font_bake.c
     text/rich_text.c
     render/raster.c
     render/surface.c
     io/bake.c
-    io/vfs.c
     io/mmap.c
-    vulkan/vk_scene.c
-    vulkan/vk_view.c
-    vulkan/vk_iosurface.c
-    vulkan/sdf_gpu.c
-    vulkan/texture/texture.c
     window/panel_bridge.c
 )
 
@@ -84,6 +84,9 @@ if(TARGET vexspoke)
 endif()
 if(TARGET hotcwap)
     target_link_libraries(darling PUBLIC hotcwap)
+endif()
+if(TARGET graphvex)
+    target_link_libraries(darling PUBLIC graphvex)
 endif()
 
 # Cocoa UI shims (macOS only): panel layers, CoreText raster, font lookup.
