@@ -64,6 +64,7 @@
 #define ID_PLOT           0x00B9u
 #define ID_TYPOGRAPHY     0x00C0u
 #define ID_RICHTEXT       0x00C1u
+#define ID_ANIM           0x00C2u
 
 // --- DARLING EVENTS (transient messages, not nodes: no Panel base,
 // no attach arms; Type_arch still reports ARCH_DARLING) ---
@@ -106,5 +107,6 @@
 #define TYPE_PLOT_SINGLETON          (PROJ_DARLING | FORM_SINGLETON | ID_PLOT)
 #define TYPE_TYPOGRAPHY_SINGLETON    (PROJ_DARLING | FORM_SINGLETON | ID_TYPOGRAPHY)
 #define TYPE_RICHTEXT_SINGLETON      (PROJ_DARLING | FORM_SINGLETON | ID_RICHTEXT)
+#define TYPE_ANIM_SINGLETON          (PROJ_DARLING | FORM_SINGLETON | ID_ANIM)
 
 #endif
