@@ -35,6 +35,22 @@
  *   int rasterH;             // Pixel height of CoreText raster
  *   float rasterBacking;     // Retina scale factor at rasterization time
  *   bool rasterDirty;        // True if string or font changed and needs re-raster
+ *   bool highlightable;      // Enables text selection & caret cursor
+ *   bool mnemonic;           // Parse '&' key accelerator prefix
+ *   char mnemonicChar;       // Parsed accelerator character ('\0' if none)
+ *   int mnemonicIndex;       // Index in display text (-1 if none)
+ *   bool ligatures;          // Enable standard typography ligatures (default true)
+ *   float spacingWidth;      // Letter tracking/kerning delta in points (default 0.0)
+ *   float spacingHeight;     // Line leading delta in points (default 0.0)
+ *   UnderlineStyle underline;// UNDERLINE_NONE, UNDERLINE_BASIC, etc.
+ *   uint32_t underlineColor; // Packed 0xAARRGGBB (0 = inherit textColor)
+ *   Cursor *cursor;          // Active mouse cursor style (I-beam when highlightable)
+ *   int32_t caretPosition;   // Character index of caret cursor (-1 = hidden)
+ *   int32_t selectionStart;  // Highlight selection start index (-1 = none)
+ *   int32_t selectionEnd;    // Highlight selection end index (-1 = none)
+ *   float highlightRadius;   // Corner radius in points for selection rounded rect (default 3.0f)
+ *   uint32_t highlightColor; // Packed 0xAARRGGBB selection background color (default 0x662563EB)
+ *   bool hovered;            // True if pointer is currently hovering within label bounds
  *
  * FUNCTION REGISTRY:
  * ----------------------------------------------------------------------------
@@ -46,6 +62,9 @@
  *
  * Core Functions:
  *   - Label_renderFn(panel, rend, cmd, surfaceW, surfaceH, x, y, w, h) : Draw handler
+ *   - Label_charIndexAt(const label, localX)                           : Character offset from point
+ *   - Label_handlePointer(label, kind, localX, localY, window)         : Pointer event dispatcher
+ *   - Label_onPointer(label, ev, window)                               : PointerEvent wrapper
  *
  * Setters:
  *   - Label_setText(label, text)
@@ -57,6 +76,22 @@
  *   - Label_setLocation(label, x, y)
  *   - Label_setSize(label, w, h)
  *   - Label_setBackgroundColor(label, color)
+ *   - Label_setHighlightable(label, flag)
+ *   - Label_setMnemonic(label, flag)
+ *   - Label_setLigatures(label, flag)
+ *   - Label_setSpacingWidth(label, width)
+ *   - Label_setSpacingHeight(label, height)
+ *   - Label_setSpacing(label, width, height)
+ *   - Label_setUnderline(label, style)
+ *   - Label_setUnderlineColor(label, color)
+ *   - Label_setUnderlineColorRGBA(label, r, g, b, a)
+ *   - Label_setCursor(label, cursor)
+ *   - Label_setCaretPosition(label, pos)
+ *   - Label_setSelection(label, start, end)
+ *   - Label_setHighlightRadius(label, radius)
+ *   - Label_setHighlightColor(label, color)
+ *   - Label_setHighlightColorRGBA(label, r, g, b, a)
+ *   - Label_setHovered(label, hovered)
  *   - Label_free(label)
  *
  * Getters:
@@ -70,6 +105,24 @@
  *   - Label_getRasterSize(const label, outW, outH)
  *   - Label_getRasterBacking(const label)
  *   - Label_isRasterDirty(const label)
+ *   - Label_isHighlightable(const label)
+ *   - Label_isMnemonic(const label)
+ *   - Label_getMnemonicChar(const label)
+ *   - Label_getMnemonicIndex(const label)
+ *   - Label_hasLigatures(const label)
+ *   - Label_getSpacingWidth(const label)
+ *   - Label_getSpacingHeight(const label)
+ *   - Label_getSpacing(const label, outWidth, outHeight)
+ *   - Label_getUnderline(const label)
+ *   - Label_getUnderlineColor(const label)
+ *   - Label_getUnderlineColorRGBA(const label, outR, outG, outB, outA)
+ *   - Label_getCursor(const label)
+ *   - Label_getCaretPosition(const label)
+ *   - Label_getSelection(const label, outStart, outEnd)
+ *   - Label_getHighlightRadius(const label)
+ *   - Label_getHighlightColor(const label)
+ *   - Label_getHighlightColorRGBA(const label, outR, outG, outB, outA)
+ *   - Label_isHovered(const label)
  * ============================================================================
  */
 
@@ -81,6 +134,121 @@ static void markRasterDirty(Label *lbl) {
     if (!lbl)
         return;
     (*lbl).rasterDirty = true;
+}
+
+static void markDirty(Label *lbl) {
+    if (!lbl)
+        return;
+    Panel *p = &(*lbl).base;
+    Container_markDirty(&(*p).base);
+}
+
+int32_t Label_charIndexAt(const Label *label, float localX) {
+    if (!label || !(*label).text)
+        return 0;
+    size_t len = strlen((*label).text);
+    if (len == 0)
+        return 0;
+    const Panel *p = &(*label).base;
+    const Container *c = &(*p).base;
+    float qw = (*c).w;
+    if ((*label).rasterW > 0) {
+        float backing = (*label).rasterBacking > 0.0f ? (*label).rasterBacking : 1.0f;
+        qw = (float) (*label).rasterW / backing;
+    }
+    if (qw <= 0.0f)
+        qw = (float) len * ((*label).fontSize * 0.5f);
+    if (localX <= 0.0f)
+        return 0;
+    if (localX >= qw)
+        return (int32_t) len;
+    float ratio = localX / qw;
+    int32_t idx = (int32_t) roundf(ratio * (float) len);
+    if (idx < 0)
+        idx = 0;
+    if (idx > (int32_t) len)
+        idx = (int32_t) len;
+    return idx;
+}
+
+void Label_handlePointer(Label *label, int kind, float localX, float localY, void *window) {
+    if (!label)
+        return;
+    Panel *p = &(*label).base;
+    Container *c = &(*p).base;
+    float w = (*c).w;
+    float h = (*c).h;
+    if (w <= 0.0f && (*label).rasterW > 0) {
+        float backing = (*label).rasterBacking > 0.0f ? (*label).rasterBacking : 1.0f;
+        w = (float) (*label).rasterW / backing;
+    }
+    if (h <= 0.0f && (*label).rasterH > 0) {
+        float backing = (*label).rasterBacking > 0.0f ? (*label).rasterBacking : 1.0f;
+        h = (float) (*label).rasterH / backing;
+    }
+
+    bool inside = (localX >= 0.0f && localX <= w && localY >= 0.0f && localY <= h);
+
+    if (kind == PTR_LEAVE || (!inside && (kind == PTR_MOVE || kind == PTR_HOVER))) {
+        if ((*label).hovered) {
+            (*label).hovered = false;
+            if (window) {
+                Cursor *defCursor = Cursor_getPredefined(CURSOR_DEFAULT);
+                Cursor_apply(defCursor, window);
+            }
+            markDirty(label);
+        }
+        return;
+    }
+
+    if (inside && (kind == PTR_ENTER || kind == PTR_MOVE || kind == PTR_HOVER)) {
+        if (!(*label).hovered) {
+            (*label).hovered = true;
+            if ((*label).highlightable && window)
+                Cursor_apply((*label).cursor, window);
+            markDirty(label);
+        } else if ((*label).highlightable && window) {
+            Cursor_apply((*label).cursor, window);
+        }
+    }
+
+    if ((*label).highlightable) {
+        if (kind == PTR_DOWN) {
+            int32_t idx = Label_charIndexAt(label, localX);
+            (*label).caretPosition = idx;
+            (*label).selectionStart = idx;
+            (*label).selectionEnd = idx;
+            markRasterDirty(label);
+            markDirty(label);
+        } else if (kind == PTR_DRAG) {
+            int32_t idx = Label_charIndexAt(label, localX);
+            (*label).selectionEnd = idx;
+            (*label).caretPosition = idx;
+            markRasterDirty(label);
+            markDirty(label);
+        } else if (kind == PTR_UP) {
+            if ((*label).selectionStart > (*label).selectionEnd) {
+                int32_t tmp = (*label).selectionStart;
+                (*label).selectionStart = (*label).selectionEnd;
+                (*label).selectionEnd = tmp;
+            }
+            if ((*label).selectionStart == (*label).selectionEnd) {
+                (*label).selectionStart = -1;
+                (*label).selectionEnd = -1;
+            }
+            markRasterDirty(label);
+            markDirty(label);
+        }
+    }
+}
+
+void Label_onPointer(Label *label, PointerEvent *ev, void *window) {
+    if (!label || !ev)
+        return;
+    int kind = PointerEvent_getKind(ev);
+    float x = PointerEvent_getX(ev);
+    float y = PointerEvent_getY(ev);
+    Label_handlePointer(label, kind, x, y, window);
 }
 
 static bool ensureRaster(Label *lbl) {
@@ -100,13 +268,53 @@ static bool ensureRaster(Label *lbl) {
     if (pxH <= 0.0f)
         return false;
     const char *family = (*lbl).fontFamily ? (*lbl).fontFamily : "Helvetica";
-    // Multiline Label: full text goes to CoreText, \n stacks rows.
-    // SDF fallback below still walks \n itself.
+
     const char *srcText = (*lbl).text;
+    char cleanText[512];
+    int mIndex = -1;
+    char mChar = '\0';
+
+    if ((*lbl).mnemonic && (*lbl).text) {
+        size_t srcLen = strlen((*lbl).text);
+        size_t dst = 0;
+        for (size_t i = 0; i < srcLen && dst + 1 < sizeof(cleanText); i++) {
+            if ((*lbl).text[i] == '&') {
+                if (i + 1 < srcLen && (*lbl).text[i + 1] == '&') {
+                    cleanText[dst++] = '&';
+                    i++;
+                } else if (i + 1 < srcLen && mIndex < 0) {
+                    mChar = (*lbl).text[i + 1];
+                    mIndex = (int) dst;
+                } else {
+                    cleanText[dst++] = (*lbl).text[i];
+                }
+            } else {
+                cleanText[dst++] = (*lbl).text[i];
+            }
+        }
+        cleanText[dst] = '\0';
+        srcText = cleanText;
+    }
+    (*lbl).mnemonicChar = mChar;
+    (*lbl).mnemonicIndex = mIndex;
+
+    TextStyleDescriptor style = {
+        .ligatures = (*lbl).ligatures,
+        .spacingWidth = (*lbl).spacingWidth,
+        .spacingHeight = (*lbl).spacingHeight,
+        .underline = (*lbl).underline,
+        .underlineColor = (*lbl).underlineColor,
+        .mnemonicIndex = mIndex,
+        .selectionStart = (*lbl).highlightable ? (*lbl).selectionStart : -1,
+        .selectionEnd = (*lbl).highlightable ? (*lbl).selectionEnd : -1,
+        .highlightRadius = (*lbl).highlightRadius,
+        .highlightColor = (*lbl).highlightColor,
+    };
+
     uint8_t *rgba = nullptr;
     int w = 0;
     int h = 0;
-    if (!TextCore_rasterLine(srcText, family, pxH, (*lbl).textColor, &rgba, &w, &h))
+    if (!TextCore_rasterStyled(srcText, family, pxH, (*lbl).textColor, &style, &rgba, &w, &h))
         return false;
     if (!rgba || w <= 0 || h <= 0)
         return false;
@@ -263,8 +471,19 @@ static void Label_renderFn(Panel *panel, void *renderer, void *cmdBuffer, float 
         }
         float qx = x;
         float qy = y + h - qh;
+
         Vk_drawTexture(cmdBuffer, surfaceW, surfaceH, qx, qy, qw, qh, 1.0f, 1.0f, 1.0f, op,
             (*lbl).rasterTex, PICTURE_MODE_FIT, (float) (*lbl).rasterW, (float) (*lbl).rasterH);
+
+        // Caret cursor line in front of text (when highlightable)
+        if ((*lbl).highlightable && (*lbl).caretPosition >= 0 && (*lbl).text) {
+            size_t textLen = strlen((*lbl).text);
+            float charW = (textLen > 0) ? (qw / (float) textLen) : (*lbl).fontSize * 0.5f;
+            float caretX = qx + charW * (float) (*lbl).caretPosition;
+            if (caretX > qx + qw)
+                caretX = qx + qw;
+            Vk_fillRect(cmdBuffer, surfaceW, surfaceH, caretX, qy, 1.5f, qh, 1.0f, 1.0f, 1.0f, 0.9f * op);
+        }
         return;
     }
     drawSdfFallback(panel, cmdBuffer, surfaceW, surfaceH, x, y, w, h);
@@ -296,6 +515,22 @@ Label *Label_0(void) {
     (*lbl).rasterH = 0;
     (*lbl).rasterBacking = 1.0f;
     (*lbl).rasterDirty = true;
+    (*lbl).highlightable = false;
+    (*lbl).mnemonic = false;
+    (*lbl).mnemonicChar = '\0';
+    (*lbl).mnemonicIndex = -1;
+    (*lbl).ligatures = true;
+    (*lbl).spacingWidth = 0.0f;
+    (*lbl).spacingHeight = 0.0f;
+    (*lbl).underline = UNDERLINE_NONE;
+    (*lbl).underlineColor = 0;
+    (*lbl).cursor = Cursor_getPredefined(CURSOR_DEFAULT);
+    (*lbl).caretPosition = -1;
+    (*lbl).selectionStart = -1;
+    (*lbl).selectionEnd = -1;
+    (*lbl).highlightRadius = 3.0f;
+    (*lbl).highlightColor = 0x662563EBu;
+    (*lbl).hovered = false;
     {
         const char *defFamily = "Helvetica";
         size_t defLen = strlen(defFamily) + 1;
@@ -332,12 +567,6 @@ Label *Label_2(Panel *parent, const char *text) {
 // SETTERS
 // ============================================================================
 
-static void markDirty(Label *lbl) {
-    if (!lbl)
-        return;
-    Panel *p = &(*lbl).base;
-    Container_markDirty(&(*p).base);
-}
 
 void Label_setText(Label *label, const char *text) {
     if (!label)
@@ -424,6 +653,141 @@ void Label_setBackgroundColor(Label *label, uint32_t color) {
     Panel_setBackgroundColor(&(*label).base, color);
 }
 
+void Label_setHighlightable(Label *label, bool flag) {
+    if (!label)
+        return;
+    (*label).highlightable = flag;
+    if (flag) {
+        (*label).cursor = Cursor_getPredefined(CURSOR_IBEAM);
+    } else {
+        (*label).cursor = Cursor_getPredefined(CURSOR_DEFAULT);
+        (*label).selectionStart = -1;
+        (*label).selectionEnd = -1;
+        (*label).caretPosition = -1;
+        (*label).hovered = false;
+    }
+    markRasterDirty(label);
+    markDirty(label);
+}
+
+void Label_setMnemonic(Label *label, bool flag) {
+    if (!label)
+        return;
+    (*label).mnemonic = flag;
+    markRasterDirty(label);
+    markDirty(label);
+}
+
+void Label_setLigatures(Label *label, bool flag) {
+    if (!label)
+        return;
+    (*label).ligatures = flag;
+    markRasterDirty(label);
+    markDirty(label);
+}
+
+void Label_setSpacingWidth(Label *label, float width) {
+    if (!label)
+        return;
+    (*label).spacingWidth = width;
+    markRasterDirty(label);
+    markDirty(label);
+}
+
+void Label_setSpacingHeight(Label *label, float height) {
+    if (!label)
+        return;
+    (*label).spacingHeight = height;
+    markRasterDirty(label);
+    markDirty(label);
+}
+
+void Label_setSpacing(Label *label, float width, float height) {
+    if (!label)
+        return;
+    (*label).spacingWidth = width;
+    (*label).spacingHeight = height;
+    markRasterDirty(label);
+    markDirty(label);
+}
+
+void Label_setUnderline(Label *label, UnderlineStyle style) {
+    if (!label)
+        return;
+    (*label).underline = style;
+    markRasterDirty(label);
+    markDirty(label);
+}
+
+void Label_setUnderlineColor(Label *label, uint32_t color) {
+    if (!label)
+        return;
+    (*label).underlineColor = color;
+    markRasterDirty(label);
+    markDirty(label);
+}
+
+void Label_setUnderlineColorRGBA(Label *label, uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+    if (!label)
+        return;
+    uint32_t packed = ((uint32_t) a << 24) | ((uint32_t) r << 16) | ((uint32_t) g << 8) | (uint32_t) b;
+    Label_setUnderlineColor(label, packed);
+}
+
+void Label_setCursor(Label *label, Cursor *cursor) {
+    if (!label)
+        return;
+    (*label).cursor = cursor;
+}
+
+void Label_setCaretPosition(Label *label, int32_t pos) {
+    if (!label)
+        return;
+    (*label).caretPosition = pos;
+    markDirty(label);
+}
+
+void Label_setSelection(Label *label, int32_t start, int32_t end) {
+    if (!label)
+        return;
+    (*label).selectionStart = start;
+    (*label).selectionEnd = end;
+    markRasterDirty(label);
+    markDirty(label);
+}
+
+void Label_setHighlightRadius(Label *label, float radius) {
+    if (!label)
+        return;
+    if (radius < 0.0f)
+        radius = 0.0f;
+    (*label).highlightRadius = radius;
+    markRasterDirty(label);
+    markDirty(label);
+}
+
+void Label_setHighlightColor(Label *label, uint32_t color) {
+    if (!label)
+        return;
+    (*label).highlightColor = color;
+    markRasterDirty(label);
+    markDirty(label);
+}
+
+void Label_setHighlightColorRGBA(Label *label, uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+    if (!label)
+        return;
+    uint32_t packed = ((uint32_t) a << 24) | ((uint32_t) r << 16) | ((uint32_t) g << 8) | (uint32_t) b;
+    Label_setHighlightColor(label, packed);
+}
+
+void Label_setHovered(Label *label, bool hovered) {
+    if (!label)
+        return;
+    (*label).hovered = hovered;
+    markDirty(label);
+}
+
 void Label_free(Label *label) {
     if (!label)
         return;
@@ -431,8 +795,10 @@ void Label_free(Label *label) {
         Memory_free((*label).text);
     if ((*label).fontFamily)
         Memory_free((*label).fontFamily);
+    Cursor_free((*label).cursor);
     (*label).text = nullptr;
     (*label).fontFamily = nullptr;
+    (*label).cursor = nullptr;
     (*label).rasterTex = -1;
     Memory_free(label);
 }
@@ -480,4 +846,86 @@ float Label_getRasterBacking(const Label *label) {
 
 bool Label_isRasterDirty(const Label *label) {
     return label ? (*label).rasterDirty : false;
+}
+
+bool Label_isHighlightable(const Label *label) {
+    return label ? (*label).highlightable : false;
+}
+
+bool Label_isMnemonic(const Label *label) {
+    return label ? (*label).mnemonic : false;
+}
+
+char Label_getMnemonicChar(const Label *label) {
+    return label ? (*label).mnemonicChar : '\0';
+}
+
+int Label_getMnemonicIndex(const Label *label) {
+    return label ? (*label).mnemonicIndex : -1;
+}
+
+bool Label_hasLigatures(const Label *label) {
+    return label ? (*label).ligatures : true;
+}
+
+float Label_getSpacingWidth(const Label *label) {
+    return label ? (*label).spacingWidth : 0.0f;
+}
+
+float Label_getSpacingHeight(const Label *label) {
+    return label ? (*label).spacingHeight : 0.0f;
+}
+
+void Label_getSpacing(const Label *label, float *outWidth, float *outHeight) {
+    if (outWidth) (*outWidth) = label ? (*label).spacingWidth : 0.0f;
+    if (outHeight) (*outHeight) = label ? (*label).spacingHeight : 0.0f;
+}
+
+UnderlineStyle Label_getUnderline(const Label *label) {
+    return label ? (*label).underline : UNDERLINE_NONE;
+}
+
+uint32_t Label_getUnderlineColor(const Label *label) {
+    return label ? (*label).underlineColor : 0;
+}
+
+void Label_getUnderlineColorRGBA(const Label *label, uint8_t *outR, uint8_t *outG, uint8_t *outB, uint8_t *outA) {
+    uint32_t c = label ? (*label).underlineColor : 0;
+    if (outA) (*outA) = (uint8_t) ((c >> 24) & 0xFF);
+    if (outR) (*outR) = (uint8_t) ((c >> 16) & 0xFF);
+    if (outG) (*outG) = (uint8_t) ((c >> 8) & 0xFF);
+    if (outB) (*outB) = (uint8_t) (c & 0xFF);
+}
+
+Cursor *Label_getCursor(const Label *label) {
+    return label ? (*label).cursor : nullptr;
+}
+
+int32_t Label_getCaretPosition(const Label *label) {
+    return label ? (*label).caretPosition : -1;
+}
+
+void Label_getSelection(const Label *label, int32_t *outStart, int32_t *outEnd) {
+    if (outStart) (*outStart) = label ? (*label).selectionStart : -1;
+    if (outEnd) (*outEnd) = label ? (*label).selectionEnd : -1;
+}
+
+float Label_getHighlightRadius(const Label *label) {
+    return label ? (*label).highlightRadius : 0.0f;
+}
+
+uint32_t Label_getHighlightColor(const Label *label) {
+    return label ? (*label).highlightColor : 0;
+}
+
+void Label_getHighlightColorRGBA(const Label *label, uint8_t *outR, uint8_t *outG, uint8_t *outB, uint8_t *outA) {
+    uint32_t c = label ? (*label).highlightColor : 0;
+    if (outA) (*outA) = (uint8_t) ((c >> 24) & 0xFF);
+    if (outR) (*outR) = (uint8_t) ((c >> 16) & 0xFF);
+    if (outG) (*outG) = (uint8_t) ((c >> 8) & 0xFF);
+    if (outB) (*outB) = (uint8_t) (c & 0xFF);
+}
+
+bool Label_isHovered(const Label *label) {
+    return label ? (*label).hovered : false;
 }

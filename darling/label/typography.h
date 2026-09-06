@@ -15,11 +15,11 @@
 #define TYPE_TYPOGRAPHY_SINGLETON (FORM_SINGLETON | ID_TYPOGRAPHY)
 #endif
 
-#define TYPOGRAPHY_H1 0
-#define TYPOGRAPHY_H2 1
-#define TYPOGRAPHY_H3 2
-#define TYPOGRAPHY_BODY 3
-#define TYPOGRAPHY_CAPTION 4
+#define TYPOGRAPHY_H1       0
+#define TYPOGRAPHY_H2       1
+#define TYPOGRAPHY_H3       2
+#define TYPOGRAPHY_BODY     3
+#define TYPOGRAPHY_CAPTION  4
 
 // darling/label/typography.h — role-styled display text (pure display node).
 
