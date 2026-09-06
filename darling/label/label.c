@@ -45,7 +45,7 @@
  *   - Label_1_parent(parent)
  *
  * Core Functions:
- *   - Label_renderFn(panel, rend, cmd, x, y, w, h) : Draw handler
+ *   - Label_renderFn(panel, rend, cmd, surfaceW, surfaceH, x, y, w, h) : Draw handler
  *
  * Setters:
  *   - Label_setText(label, text)
@@ -121,22 +121,27 @@ static bool ensureRaster(Label *lbl) {
     return true;
 }
 
-static void drawSdfFallback(Panel *panel, void *cmdBuffer, float x, float y, float w, float h) {
+static void drawSdfFallback(Panel *panel, void *cmdBuffer, float surfaceW, float surfaceH,
+                            float x, float y, float w, float h) {
     Label *lbl = (Label*) panel;
+    float op = Container_getOpacity(&(*panel).base);
+    if (op <= 0.0f)
+        return;
     uint32_t bgColor = Panel_getBackgroundColor(panel);
     if ((bgColor >> 24) > 0) {
         float br = ((bgColor >> 16) & 0xFF) / 255.0f;
         float bg = ((bgColor >> 8) & 0xFF) / 255.0f;
         float bb = (bgColor & 0xFF) / 255.0f;
-        float ba = ((bgColor >> 24) & 0xFF) / 255.0f;
-        Vk_fillRect(cmdBuffer, w, h, x, y, w, h, br, bg, bb, ba);
+        float ba = ((bgColor >> 24) & 0xFF) / 255.0f * op;
+        if (ba > 0.0f)
+            Vk_fillRect(cmdBuffer, surfaceW, surfaceH, x, y, w, h, br, bg, bb, ba);
     }
     if (!(*lbl).text || !(*lbl).font || (*lbl).fontSize <= 0)
         return;
     float cr = (((*lbl).textColor >> 16) & 0xFF) / 255.0f;
     float cg = (((*lbl).textColor >> 8) & 0xFF) / 255.0f;
     float cb = ((*lbl).textColor & 0xFF) / 255.0f;
-    float ca = (((*lbl).textColor >> 24) & 0xFF) / 255.0f;
+    float ca = (((*lbl).textColor >> 24) & 0xFF) / 255.0f * op;
     float ascent = 0;
     float descent = 0;
     float lineGap = 0;
@@ -213,9 +218,9 @@ static void drawSdfFallback(Panel *panel, void *cmdBuffer, float x, float y, flo
                 if (texId < 0)
                     texId = page0Tex;
                 if (gm.color)
-                    Vk_drawColorGlyph(cmdBuffer, w, h, qx, qy, gm.width, gm.height, ca, texId, gm.u0, gm.v0, gm.u1, gm.v1);
+                    Vk_drawColorGlyph(cmdBuffer, surfaceW, surfaceH, qx, qy, gm.width, gm.height, ca, texId, gm.u0, gm.v0, gm.u1, gm.v1);
                 else
-                    Vk_drawSDFText(cmdBuffer, w, h, qx, qy, gm.width, gm.height, cr, cg, cb, ca, texId, 0.0f, (*lbl).smoothness, gm.u0, gm.v0, gm.u1, gm.v1);
+                    Vk_drawSDFText(cmdBuffer, surfaceW, surfaceH, qx, qy, gm.width, gm.height, cr, cg, cb, ca, texId, 0.0f, (*lbl).smoothness, gm.u0, gm.v0, gm.u1, gm.v1);
             }
             cx += gm.advance;
         }
@@ -223,16 +228,21 @@ static void drawSdfFallback(Panel *panel, void *cmdBuffer, float x, float y, flo
     }
 }
 
-static void Label_renderFn(Panel *panel, void *renderer, void *cmdBuffer, float x, float y, float w, float h) {
+static void Label_renderFn(Panel *panel, void *renderer, void *cmdBuffer, float surfaceW, float surfaceH,
+                           float x, float y, float w, float h) {
     Label *lbl = (Label*) panel;
     (void) renderer;
+    float op = panel ? Container_getOpacity(&(*panel).base) : 1.0f;
+    if (op <= 0.0f)
+        return;
     uint32_t bgColor = Panel_getBackgroundColor(panel);
     if ((bgColor >> 24) > 0) {
         float br = ((bgColor >> 16) & 0xFF) / 255.0f;
         float bgg = ((bgColor >> 8) & 0xFF) / 255.0f;
         float bb = (bgColor & 0xFF) / 255.0f;
-        float ba = ((bgColor >> 24) & 0xFF) / 255.0f;
-        Vk_fillRect(cmdBuffer, w, h, x, y, w, h, br, bgg, bb, ba);
+        float ba = ((bgColor >> 24) & 0xFF) / 255.0f * op;
+        if (ba > 0.0f)
+            Vk_fillRect(cmdBuffer, surfaceW, surfaceH, x, y, w, h, br, bgg, bb, ba);
     }
     if (!lbl || !(*lbl).text || (*lbl).text[0] == '\0' || (*lbl).fontSize <= 0.0f)
         return;
@@ -253,11 +263,11 @@ static void Label_renderFn(Panel *panel, void *renderer, void *cmdBuffer, float 
         }
         float qx = x;
         float qy = y + h - qh;
-        Vk_drawTexture(cmdBuffer, w, h, qx, qy, qw, qh, 1.0f, 1.0f, 1.0f, 1.0f,
+        Vk_drawTexture(cmdBuffer, surfaceW, surfaceH, qx, qy, qw, qh, 1.0f, 1.0f, 1.0f, op,
             (*lbl).rasterTex, PICTURE_MODE_FIT, (float) (*lbl).rasterW, (float) (*lbl).rasterH);
         return;
     }
-    drawSdfFallback(panel, cmdBuffer, x, y, w, h);
+    drawSdfFallback(panel, cmdBuffer, surfaceW, surfaceH, x, y, w, h);
 }
 
 // ============================================================================
