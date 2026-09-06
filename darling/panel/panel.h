@@ -27,8 +27,8 @@
 struct Panel;
 
 typedef void (*Panel_RenderFn)(struct Panel *panel, void *renderer,
-                               void *cmdBuffer, float x, float y,
-                               float w, float h);
+                               void *cmdBuffer, float surfaceW, float surfaceH,
+                               float x, float y, float w, float h);
 
 typedef struct Panel {
     Container base;         // embedded prefix — pass &(*panel).base upward
@@ -84,10 +84,26 @@ static inline void Panel_setSelfAnchor(Panel *p, int anchor)
     { if (p) Container_setSelfAnchor(&(*p).base, anchor); }
 static inline void Panel_setVisible(Panel *p, bool visible)
     { if (p) Container_setVisible(&(*p).base, visible); }
+static inline void Panel_setOpacity(Panel *p, float opacity)
+    { if (p) Container_setOpacity(&(*p).base, opacity); }
+static inline float Panel_getOpacity(const Panel *p)
+    { return p ? Container_getOpacity(&(*p).base) : 1.0f; }
 static inline bool Panel_isVisible(const Panel *p)
     { return p && Container_isVisible(&(*p).base); }
 static inline void Panel_setZ(Panel *p, int z)
     { if (p) Container_setZ(&(*p).base, z); }
+static inline void Panel_setMargin(Panel *p, float l, float t, float r, float b)
+    { if (p) Container_setMargin(&(*p).base, l, t, r, b); }
+static inline void Panel_getMargin(const Panel *p, float *l, float *t, float *r, float *b)
+    { if (p) Container_getMargin(&(*p).base, l, t, r, b); }
+static inline void Panel_setRadius(Panel *p, float r)
+    { if (p) Container_setRadius(&(*p).base, r); }
+static inline float Panel_getRadius(const Panel *p)
+    { return p ? Container_getRadius(&(*p).base) : 0.0f; }
+static inline void Panel_setRadiusMode(Panel *p, int mode)
+    { if (p) Container_setRadiusMode(&(*p).base, mode); }
+static inline int Panel_getRadiusMode(const Panel *p)
+    { return p ? Container_getRadiusMode(&(*p).base) : CORNER_ARC; }
 
 // Shared payload slots (read/write-through to the canonical source on views).
 void *Panel_getImage(const Panel *p);

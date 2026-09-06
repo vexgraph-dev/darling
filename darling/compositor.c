@@ -80,7 +80,7 @@ typedef struct IOSurfaceChild {
     bool valid;
 } IOSurfaceChild;
 
-#define IOSURFACE_CHILD_MAX 64
+#define IOSURFACE_CHILD_MAX 256
 static IOSurfaceChild s_iosurfaceChildren[IOSURFACE_CHILD_MAX] = {0};
 static int s_iosurfaceChildCount = 0;
 static VkCommandPool s_compositorCmdPool = VK_NULL_HANDLE;
@@ -184,15 +184,17 @@ static IOSurfaceChild *recordChildToIOSurface(VkCommandBuffer cb, Panel *child, 
     } else {
         Panel_RenderFn handler = Panel_getRenderHandler(child);
         if (handler) {
-            handler(child, nullptr, cb, 0.0f, 0.0f, (float)renderW, (float)renderH);
+            handler(child, nullptr, cb, (float) renderW, (float) renderH, 0.0f, 0.0f, (float) renderW, (float) renderH);
         } else {
             uint32_t color = Panel_getBackgroundColor(child);
             if (color != 0) {
                 float r = (float)((color >> 16) & 0xFF) / 255.0f;
                 float g = (float)((color >> 8)  & 0xFF) / 255.0f;
                 float b = (float)( color        & 0xFF) / 255.0f;
-                float a = (float)((color >> 24) & 0xFF) / 255.0f;
-                Vk_fillRect(cb, (float)renderW, (float)renderH, 0.0f, 0.0f, (float)renderW, (float)renderH, r, g, b, a);
+                float a = (float)((color >> 24) & 0xFF) / 255.0f
+                    * Container_getOpacity(&(*child).base);
+                if (a > 0.0f)
+                    Vk_fillRect(cb, (float)renderW, (float)renderH, 0.0f, 0.0f, (float)renderW, (float)renderH, r, g, b, a);
             }
         }
     }
@@ -381,7 +383,7 @@ void Darling_renderFrame(void *cmdBuffer, int drawW, int drawH, void *userdata) 
             if (isScene) {
                 Panel_RenderFn handler = Panel_getRenderHandler(child);
                 if (handler) {
-                    handler(child, nullptr, cmdBuffer, px, py, pw, ph);
+                    handler(child, nullptr, cmdBuffer, (float) drawW, (float) drawH, px, py, pw, ph);
                 } else {
                     COMPOSITOR_LOAD_DEVICE(CmdSetViewport);
                     COMPOSITOR_LOAD_DEVICE(CmdSetScissor);
@@ -406,15 +408,17 @@ void Darling_renderFrame(void *cmdBuffer, int drawW, int drawH, void *userdata) 
             } else {
                 Panel_RenderFn handler = Panel_getRenderHandler(child);
                 if (handler) {
-                    handler(child, nullptr, cmdBuffer, px, py, pw, ph);
+                    handler(child, nullptr, cmdBuffer, (float) drawW, (float) drawH, px, py, pw, ph);
                 } else {
                     uint32_t color = Panel_getBackgroundColor(child);
                     if (color != 0) {
                         float r = ((color >> 16) & 0xFF) / 255.0f;
                         float g = ((color >> 8) & 0xFF) / 255.0f;
                         float b = (color & 0xFF) / 255.0f;
-                        float a = ((color >> 24) & 0xFF) / 255.0f;
-                        Vk_fillRect(cmdBuffer, (float)drawW, (float)drawH, px, py, pw, ph, r, g, b, a);
+                        float a = ((color >> 24) & 0xFF) / 255.0f
+                            * Container_getOpacity(&(*child).base);
+                        if (a > 0.0f)
+                            Vk_fillRect(cmdBuffer, (float)drawW, (float)drawH, px, py, pw, ph, r, g, b, a);
                     }
                 }
             }
