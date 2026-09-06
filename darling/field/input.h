@@ -50,7 +50,7 @@ typedef struct Input {
     Font *font;
     // --- Caret part (field->caret->verb; views only, never pierce) ---
     int caretMode;          // BLINK/SOLID/GLIDE (default BLINK)
-    uint32_t caretColor;    // packed 0xRRGGBBAA
+    uint32_t caretColor;    // packed 0xAARRGGBB
     float caretBlinkPeriod; // half-cycle seconds (default 0.53)
     double caretClock;      // blink timer (tick advances)
     bool caretShown;        // current blink phase (view)

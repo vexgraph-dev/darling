@@ -41,7 +41,7 @@
  *   Font *font;              // Optional SDF font descriptor (borrowed)
  *   --- Caret part (views only) ---
  *   int caretMode;           // BLINK/SOLID/GLIDE (default BLINK)
- *   uint32_t caretColor;     // Packed 0xRRGGBBAA (default white)
+ *   uint32_t caretColor;     // Packed 0xAARRGGBB (default white)
  *   float caretBlinkPeriod;  // Half-cycle seconds (default 0.53)
  *   double caretClock;       // Blink timer (tick advances)
  *   bool caretShown;         // Current blink phase (view)
@@ -408,8 +408,11 @@ void Input_caret_tick(Input *inp, double dt) {
         if (period <= 0.0f)
             period = INPUT_CARET_DEFAULT_PERIOD;
         float phase = fmodf((float)(*inp).caretClock, period * 2.0f);
-        (*inp).caretShown = phase < period; // float-exact: == period hides
-        markDirty(inp);
+        bool shown = phase < period; // float-exact: == period hides
+        if (shown != (*inp).caretShown) {
+            (*inp).caretShown = shown; // dirty ONLY on flip: rest is silence
+            markDirty(inp);
+        }
     } else if ((*inp).caretMode == INPUT_CARET_GLIDE) {
         float k = (float)(dt / (double)INPUT_CARET_GLIDE_TIME);
         if (k > 1.0f)
