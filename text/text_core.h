@@ -14,6 +14,28 @@
 // Backing comes from the active pixel mode (currentWidth / pointWidth), not
 // the panel max and not a hardcoded 2.0.
 
+// Underline styling modes
+typedef enum UnderlineStyle {
+    UNDERLINE_NONE          = 0,
+    UNDERLINE_BASIC         = 1,
+    UNDERLINE_STRIKETHROUGH = 2,
+    UNDERLINE_JAGGED        = 3,
+} UnderlineStyle;
+
+// Rich typography style descriptor passed to native rasterizer
+typedef struct TextStyleDescriptor {
+    bool ligatures;           // true = enable ligatures (default true)
+    float spacingWidth;       // tracking/kerning delta in points (default 0.0)
+    float spacingHeight;      // extra line leading in points (default 0.0)
+    UnderlineStyle underline; // UNDERLINE_NONE, UNDERLINE_BASIC, etc.
+    uint32_t underlineColor;  // packed 0xAARRGGBB (0 = match text color)
+    int mnemonicIndex;        // -1 = none; character index to underline for mnemonic
+    int selectionStart;       // -1 = none; character start index of selection
+    int selectionEnd;         // -1 = none; character end index of selection
+    float highlightRadius;    // corner radius of selection rounded rect in points (default 3.0f)
+    uint32_t highlightColor;  // packed 0xAARRGGBB selection background fill (0 = default 0x662563EB)
+} TextStyleDescriptor;
+
 // Active backing scale: NSScreen backingScaleFactor (Retina points to pixels).
 // For active-mode currentWidth/pointWidth, combine with DisplayInfo on top.
 float TextCore_backingScale(void);
@@ -22,5 +44,9 @@ float TextCore_backingScale(void);
 // Returns malloc'd RGBA8 (caller frees with free), or nullptr on failure.
 // outW/outH receive native pixel dimensions. Last param is dest-last.
 bool TextCore_rasterLine(const char *utf8, const char *family, float pxHeight, uint32_t argb, uint8_t **outRgba, int *outW, int *outH);
+
+// Rasterize one UTF-8 string with explicit typography style descriptor.
+bool TextCore_rasterStyled(const char *utf8, const char *family, float pxHeight, uint32_t argb,
+                           const TextStyleDescriptor *style, uint8_t **outRgba, int *outW, int *outH);
 
 #endif

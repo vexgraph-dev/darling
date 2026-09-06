@@ -27,6 +27,7 @@
  * Core Functions:
  *   - TextCore_backingScale(void)
  *   - TextCore_rasterLine(utf8, family, pxHeight, argb, outRgba, outW, outH)
+ *   - TextCore_rasterStyled(utf8, family, pxHeight, argb, style, outRgba, outW, outH)
  * ============================================================================
  */
 
@@ -42,6 +43,11 @@ float TextCore_backingScale(void) {
 }
 
 bool TextCore_rasterLine(const char *utf8, const char *family, float pxHeight, uint32_t argb, uint8_t **outRgba, int *outW, int *outH) {
+    return TextCore_rasterStyled(utf8, family, pxHeight, argb, nullptr, outRgba, outW, outH);
+}
+
+bool TextCore_rasterStyled(const char *utf8, const char *family, float pxHeight, uint32_t argb,
+                           const TextStyleDescriptor *style, uint8_t **outRgba, int *outW, int *outH) {
     if (!utf8 || !outRgba || !outW || !outH)
         return false;
     if (pxHeight <= 0.0f)
@@ -77,10 +83,22 @@ bool TextCore_rasterLine(const char *utf8, const char *family, float pxHeight, u
         uint8_t g = (uint8_t) ((argb >> 8) & 0xFF);
         uint8_t b = (uint8_t) (argb & 0xFF);
 
-        NSDictionary *attrs = @{
-            (id)kCTFontAttributeName: (__bridge id) font,
-            (id)kCTForegroundColorAttributeName: (id)[NSColor colorWithCalibratedRed:(r/255.0) green:(g/255.0) blue:(b/255.0) alpha:(a/255.0)].CGColor
-        };
+        float backing = TextCore_backingScale();
+        if (backing <= 0.0f)
+            backing = 1.0f;
+
+        bool enableLigatures = style ? (*style).ligatures : true;
+        CGFloat kern = (style && (*style).spacingWidth != 0.0f) ? ((*style).spacingWidth * backing) : 0.0f;
+        CGFloat extraLineHeight = (style && (*style).spacingHeight != 0.0f) ? ((*style).spacingHeight * backing) : 0.0f;
+
+        NSMutableDictionary *attrs = [NSMutableDictionary dictionaryWithCapacity:4];
+        [attrs setObject:(__bridge id) font forKey:(id)kCTFontAttributeName];
+        [attrs setObject:(id)[NSColor colorWithCalibratedRed:(r/255.0) green:(g/255.0) blue:(b/255.0) alpha:(a/255.0)].CGColor forKey:(id)kCTForegroundColorAttributeName];
+        [attrs setObject:@(enableLigatures ? 1 : 0) forKey:(id)kCTLigatureAttributeName];
+        if (kern != 0.0f) {
+            [attrs setObject:@(kern) forKey:(id)kCTKernAttributeName];
+        }
+
         // Multiline: split on \n, one CTLine per row, stacked top to bottom.
         NSArray<NSString *> *rows = [str componentsSeparatedByString:@"\n"];
         if ([rows count] == 0)
@@ -111,7 +129,7 @@ bool TextCore_rasterLine(const char *utf8, const char *family, float pxHeight, u
         for (size_t k = 0; k < nlines; k++) {
             if (advs[k] > maxAdv)
                 maxAdv = advs[k];
-            totalH += asc[k] + desc[k] + lead[k];
+            totalH += asc[k] + desc[k] + lead[k] + (k > 0 ? extraLineHeight : 0.0);
         }
         int w = (int) ceil(maxAdv) + 2;
         int h = (int) ceil(totalH) + (int) (2 * nlines);
@@ -164,15 +182,139 @@ bool TextCore_rasterLine(const char *utf8, const char *family, float pxHeight, u
         CGContextSetAllowsFontSubpixelQuantization(ctx, true);
         CGContextSetShouldSubpixelQuantizeFonts(ctx, true);
         CGContextClearRect(ctx, CGRectMake(0, 0, w, h));
+
+        // Determine underline color & stroke width
+        UnderlineStyle ustyle = style ? (*style).underline : UNDERLINE_NONE;
+        uint32_t ucolor = (style && (*style).underlineColor != 0) ? (*style).underlineColor : argb;
+        CGFloat ur = ((ucolor >> 16) & 0xFF) / 255.0;
+        CGFloat ug = ((ucolor >> 8) & 0xFF) / 255.0;
+        CGFloat ub = (ucolor & 0xFF) / 255.0;
+        CGFloat ua = ((ucolor >> 24) & 0xFF) / 255.0;
+        CGFloat strokeW = fmax(1.0, floor(backing));
+
         // Stack lines from the bottom: last row at 1+descent, earlier above.
         // In CGBitmapContext, row 0 in memory is already visual top with upright glyphs.
         {
             double penY = 1.0;
             for (size_t k = nlines; k > 0; k--) {
                 size_t idx = k - 1;
-                CGContextSetTextPosition(ctx, 1.0, penY + desc[idx]);
+                CGFloat baselineY = penY + desc[idx];
+
+                // Selection highlight rounded rectangle behind text
+                if (style && (*style).selectionStart >= 0 && (*style).selectionEnd > (*style).selectionStart) {
+                    int selStart = (*style).selectionStart;
+                    int selEnd = (*style).selectionEnd;
+                    if (selStart > selEnd) {
+                        int tmp = selStart;
+                        selStart = selEnd;
+                        selEnd = tmp;
+                    }
+                    int rowLen = (int) [rows[idx] length];
+                    int s0 = (int) fmax(0.0, (double) selStart);
+                    int s1 = (int) fmin((double) rowLen, (double) selEnd);
+                    if (s1 > s0) {
+                        CGFloat sx0 = CTLineGetOffsetForStringIndex(lines[idx], s0, NULL);
+                        CGFloat sx1 = CTLineGetOffsetForStringIndex(lines[idx], s1, NULL);
+                        if (sx1 < sx0) {
+                            CGFloat tmp = sx0;
+                            sx0 = sx1;
+                            sx1 = tmp;
+                        }
+                        CGFloat rectX = 1.0 + sx0;
+                        CGFloat rectW = sx1 - sx0;
+                        CGFloat rectY = fmax(0.0, penY - 1.0 * backing);
+                        CGFloat rectH = asc[idx] + desc[idx] + 2.0 * backing;
+
+                        float radPts = ((*style).highlightRadius > 0.0f) ? (*style).highlightRadius : 3.0f;
+                        CGFloat rad = radPts * backing;
+                        if (rad > rectH * 0.5)
+                            rad = rectH * 0.5;
+                        if (rad > rectW * 0.5)
+                            rad = rectW * 0.5;
+
+                        uint32_t hcol = ((*style).highlightColor != 0) ? (*style).highlightColor : 0x662563EBu;
+                        CGFloat ha = ((hcol >> 24) & 0xFF) / 255.0;
+                        CGFloat hr = ((hcol >> 16) & 0xFF) / 255.0;
+                        CGFloat hg = ((hcol >> 8) & 0xFF) / 255.0;
+                        CGFloat hb = (hcol & 0xFF) / 255.0;
+
+                        CGContextSaveGState(ctx);
+                        CGContextSetRGBFillColor(ctx, hr, hg, hb, ha);
+                        CGRect selRect = CGRectMake(rectX, rectY, rectW, rectH);
+                        if (rad > 0.0) {
+                            CGPathRef rpath = CGPathCreateWithRoundedRect(selRect, rad, rad, NULL);
+                            CGContextAddPath(ctx, rpath);
+                            CGContextFillPath(ctx);
+                            CGPathRelease(rpath);
+                        } else {
+                            CGContextFillRect(ctx, selRect);
+                        }
+                        CGContextRestoreGState(ctx);
+                    }
+                }
+
+                CGContextSetTextPosition(ctx, 1.0, baselineY);
                 CTLineDraw(lines[idx], ctx);
-                penY += asc[idx] + desc[idx] + lead[idx] + 2.0;
+
+                // Underline decorations
+                if (ustyle != UNDERLINE_NONE && advs[idx] > 0.0) {
+                    CGContextSaveGState(ctx);
+                    CGContextSetRGBStrokeColor(ctx, ur, ug, ub, ua);
+                    CGContextSetLineWidth(ctx, strokeW);
+                    CGFloat x0 = 1.0;
+                    CGFloat x1 = 1.0 + advs[idx];
+
+                    if (ustyle == UNDERLINE_BASIC) {
+                        CGFloat lineY = baselineY - fmax(1.0 * backing, desc[idx] * 0.4);
+                        CGContextMoveToPoint(ctx, x0, lineY);
+                        CGContextAddLineToPoint(ctx, x1, lineY);
+                        CGContextStrokePath(ctx);
+                    } else if (ustyle == UNDERLINE_STRIKETHROUGH) {
+                        CGFloat lineY = baselineY + asc[idx] * 0.35;
+                        CGContextMoveToPoint(ctx, x0, lineY);
+                        CGContextAddLineToPoint(ctx, x1, lineY);
+                        CGContextStrokePath(ctx);
+                    } else if (ustyle == UNDERLINE_JAGGED) {
+                        CGFloat lineY = baselineY - fmax(1.0 * backing, desc[idx] * 0.4);
+                        CGFloat waveLen = 4.0 * backing;
+                        CGFloat amp = 1.2 * backing;
+                        CGMutablePathRef path = CGPathCreateMutable();
+                        CGPathMoveToPoint(path, NULL, x0, lineY);
+                        CGFloat cx = x0;
+                        BOOL up = YES;
+                        while (cx < x1) {
+                            CGFloat nx = fmin(cx + waveLen * 0.5, x1);
+                            CGFloat ny = lineY + (up ? amp : -amp);
+                            CGPathAddLineToPoint(path, NULL, nx, ny);
+                            cx = nx;
+                            up = !up;
+                        }
+                        CGContextAddPath(ctx, path);
+                        CGContextStrokePath(ctx);
+                        CGPathRelease(path);
+                    }
+                    CGContextRestoreGState(ctx);
+                }
+
+                // Mnemonic accelerator character underline
+                if (style && (*style).mnemonicIndex >= 0 && ustyle == UNDERLINE_NONE) {
+                    if ((*style).mnemonicIndex < (int)[rows[idx] length]) {
+                        CGFloat mx0 = CTLineGetOffsetForStringIndex(lines[idx], (*style).mnemonicIndex, NULL);
+                        CGFloat mx1 = CTLineGetOffsetForStringIndex(lines[idx], (*style).mnemonicIndex + 1, NULL);
+                        if (mx1 > mx0) {
+                            CGContextSaveGState(ctx);
+                            CGContextSetRGBStrokeColor(ctx, ur, ug, ub, ua);
+                            CGContextSetLineWidth(ctx, strokeW);
+                            CGFloat lineY = baselineY - fmax(1.0 * backing, desc[idx] * 0.4);
+                            CGContextMoveToPoint(ctx, 1.0 + mx0, lineY);
+                            CGContextAddLineToPoint(ctx, 1.0 + mx1, lineY);
+                            CGContextStrokePath(ctx);
+                            CGContextRestoreGState(ctx);
+                        }
+                    }
+                }
+
+                penY += asc[idx] + desc[idx] + lead[idx] + 2.0 + extraLineHeight;
             }
         }
         CGContextRelease(ctx);

@@ -21,6 +21,7 @@
  * Core Functions:
  *   - TextCore_backingScale(void)
  *   - TextCore_rasterLine(utf8, family, pxHeight, argb, outRgba, outW, outH)
+ *   - TextCore_rasterStyled(utf8, family, pxHeight, argb, style, outRgba, outW, outH)
  * ============================================================================
  */
 
@@ -47,4 +48,10 @@ bool TextCore_rasterLine(const char *utf8, const char *family, float pxHeight, u
     (*outW) = 0;
     (*outH) = 0;
     return false;
+}
+
+bool TextCore_rasterStyled(const char *utf8, const char *family, float pxHeight, uint32_t argb,
+                           const TextStyleDescriptor *style, uint8_t **outRgba, int *outW, int *outH) {
+    (void) style;
+    return TextCore_rasterLine(utf8, family, pxHeight, argb, outRgba, outW, outH);
 }
