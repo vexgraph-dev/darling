@@ -22,6 +22,7 @@
  * ----------------------------------------------------------------------------
  * Core Functions:
  *   - Raster_rect(buf, x, y, w, h, r, g, b, a)
+ *   - Raster_roundedRect(buf, x, y, w, h, radius, mode, r, g, b, a)
  *   - Raster_gradientH(buf, x, y, w, h, r0, g0, b0, a0, r1, g1, b1, a1)
  *   - Raster_line(buf, x0, y0, x1, y1, r, g, b, a)
  *   - Raster_triangle(buf, x0, y0, x1, y1, x2, y2, r, g, b, a)
@@ -49,6 +50,55 @@ void Raster_rect(Buffer *buf, int x, int y, int w, int h,
     for (int row = y; row < y + h; row++)
         for (int col = x; col < x + w; col++)
             putPixel(buf, col, row, (RGBA){r, g, b, a});
+}
+
+void Raster_roundedRect(Buffer *buf, int x, int y, int w, int h, int radius, int mode,
+                        uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+    if (!buf || w <= 0 || h <= 0)
+        return;
+    int half = w < h ? w : h;
+    half /= 2;
+    int rad = radius;
+    if (rad < 0)
+        rad = 0;
+    if (rad > half)
+        rad = half;
+    if (rad == 0) {
+        Raster_rect(buf, x, y, w, h, r, g, b, a);
+        return;
+    }
+    RGBA c = {r, g, b, a};
+    float fr = (float)rad;
+    float left = (float)x;
+    float top = (float)y;
+    float right = (float)(x + w);
+    float bottom = (float)(y + h);
+    for (int row = y; row < y + h; row++) {
+        for (int col = x; col < x + w; col++) {
+            float cx = (float)col + 0.5f;
+            float cy = (float)row + 0.5f;
+            bool inMidX = cx >= left + fr && cx <= right - fr;
+            bool inMidY = cy >= top + fr && cy <= bottom - fr;
+            if (inMidX || inMidY) {
+                putPixel(buf, col, row, c);
+                continue;
+            }
+            float ccx = cx < left + fr ? left + fr : right - fr;
+            float ccy = cy < top + fr ? top + fr : bottom - fr;
+            float dx = (cx - ccx) / fr;
+            float dy = (cy - ccy) / fr;
+            bool inside = false;
+            if (mode == 1) {
+                float qx = dx * dx;
+                float qy = dy * dy;
+                inside = qx * qx + qy * qy <= 1.0f;
+            } else {
+                inside = dx * dx + dy * dy <= 1.0f;
+            }
+            if (inside)
+                putPixel(buf, col, row, c);
+        }
+    }
 }
 
 void Raster_gradientH(Buffer *buf, int x, int y, int w, int h,

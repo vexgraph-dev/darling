@@ -19,6 +19,11 @@
 void Raster_rect(Buffer *buf, int x, int y, int w, int h,
                  uint8_t r, uint8_t g, uint8_t b, uint8_t a);
 
+// Rounded rect: mode 0 = circular-arc (x^2+y^2 pixel test), 1 = superellipse
+// (|x/a|^4+|y/b|^4<=1). Radius clamps to half min(w,h); radius 0 == Raster_rect.
+void Raster_roundedRect(Buffer *buf, int x, int y, int w, int h, int radius, int mode,
+                        uint8_t r, uint8_t g, uint8_t b, uint8_t a);
+
 // Linear gradient across the rect: color at (x,y) lerps from (r0..a0) at the
 // left edge to (r1..a1) at the right edge.
 void Raster_gradientH(Buffer *buf, int x, int y, int w, int h,
