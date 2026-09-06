@@ -1,6 +1,6 @@
 #include "nio/mem.h"
 #include "oop/type.h"
-#include "darling-type.h"
+#include "../c23/darling-type.h"
 #include "rich_text.h"
 #include <stdlib.h>
 #include <string.h>
