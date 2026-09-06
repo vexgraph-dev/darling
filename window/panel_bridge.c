@@ -7,6 +7,7 @@
 #include "lang/vec4.h"
 #include "darling/container.h"
 #include "darling/panel/panel.h"
+#include "darling/panel/scroll_panel.h"
 #include "window/window.h"
 #include "annotation/overview.h"
 
@@ -50,6 +51,29 @@
 
 
 // src/window/panel_bridge.c — pure-C bridge for IOSurface panel operations.
+//
+// LAYER MODEL (the stack, front to back):
+//   scrollbar ......... own IOSurface (ScrollPanel right-dock, topmost child)
+//   1st-gen children .. one IOSurface EACH (attached here, per direct child)
+//   window ............ CAMetalLayer (AppKit-owned, Vulkan never touches it)
+//
+// Darling numbering:
+//   layer 1 = window (CAMetalLayer, the composite target)
+//   layer 2 = contentPanel — most honestly a SCROLLPANEL: the window IS y,
+//             not a child filling it. Children a/b/c/d sit inside y under
+//             ABSOLUTE layout (explicit frames, no layout manager).
+//   layer 3 = first-gen panels (own IOSurface each; deeper nesting —
+//             a1/a2/a3 inside a — paints inside the parent surface via
+//             Vulkan render handlers (Panel_setRenderHandler, cf. vk_test's
+//             hud_pulse/pic_render), NOT as nested layers/JPanels).
+//   scrollbar = own IOSurface at the layer-3 edge (topmost child order).
+//   Scroll offsets reach layers through ScrollPanel_childFrame (content
+//   shifts by -offset, chrome stays) — C-side resolve is the source of
+//   truth, exactly as vk_test's hand-placed anchors proved.
+//
+// TRAFFIC LAW: Vulkan renders INSIDE the IOSurfaces (producer only) and
+// never presents the window; WindowServer composites the stack onto the
+// CAMetalLayer. Resize = layer moves via anchors, zero repaint.
 //
 // Each content panel child gets an IOSurface. Vulkan renders into each
 // IOSurface independently (async). AppKit composites the CALayers.
@@ -148,8 +172,17 @@ void anti_CompositeIOSurfaceChildren(Window *window, Panel *contentPanel) {
 }
 
 // Layout helper for ObjC side (avoids pulling darling/panel.h into ObjC).
+// C-side resolve is the source of truth: when the child's parent is a
+// ScrollPanel (the window-IS-y model), the frame goes through
+// ScrollPanel_childFrame so content shifts by -offset while chrome (the
+// bar) stays — raw Container_resolve would pin scrolled content in place.
 void anti_GetChildLayout(Panel *child, float winW, float winH, float *outX, float *outY, float *outW, float *outH) {
     if (!child || !outX || !outY || !outW || !outH) return;
+    Panel *parent = Panel_getParent(child);
+    if (parent && Memory_type(parent) == TYPE_SCROLL_PANEL_SINGLETON) {
+        ScrollPanel_childFrame((ScrollPanel *)parent, child, winW, winH, outX, outY, outW, outH);
+        return;
+    }
     Vec4 rect;
     Container_resolve(&(*child).base, 0.0f, 0.0f, winW, winH, &rect);
     *outX = rect.x;
