@@ -16,7 +16,7 @@ Instead, `darling` combines **self-describing C23 memory blocks** with a **hardw
 * **Dual-Path Typography Engine**:
   * **Sharp Path**: Subpixel, line-by-line native Apple CoreText rasterization (`objc/text_core.m`) directly into 1:1 pixel-accurate textured quads.
   * **SDF Path**: High-precision signed distance field generation accelerated via the **GPU Jump-Flood Algorithm (JFA)** using Vulkan compute shaders (`sdf_jfa.comp`, `sdf_combine.comp`) for scale-invariant rendering and outline/glow effects.
-* **TrueType Baking & VFS**: Built-in TrueType font parsing (`stb_truetype.h`), atlas baking, and custom binary font packaging (`.antifont`) stored in `~/vex/fonts`.
+* **TrueType Baking & VFS**: Built-in TrueType font parsing (`stb_truetype.h`), atlas baking, and custom binary font packaging (`.antifont`) stored in `~/vex/fonts` — engine lives in `graphvex` (`font/`, `fontbake` CLI), darling consumes it via link.
 * **Symmetric Getter/Setter Completeness (Rule 24)**: Modeled after the ergonomics of an idiomatic Java or C# library, every UI node provides complete, type-safe getters and setters (`setText`/`getText`, `setFontSize`/`getFontSize`). Callers never have to manually pierce internal nested struct pointers.
 * **The Living `;;OVERVIEW` Blueprint (Rule 23)**: Every implementation file documents its struct fields, inheritance hierarchy, and four-tier method index (`constructor`, `core functions`, `setters`, `getters`) in the first 100–150 lines.
 
@@ -33,7 +33,7 @@ workspace/
 │   ├── vexspoke/                # Bedrock C23 platform runtime (Layer 1)
 │   ├── hotcwap/                 # Dynamic hot-reloading & native OS windowing (Layer 2)
 │   ├── darling/                 # Retained-mode UI nodes & Vulkan render passes (this library)
-│   │   └── src/                 # Canvas, panels, labels, font baking, CoreText, SDF
+│   │   └── src/                 # Canvas, panels, labels, CoreText, SDF
 │   ├── api-haven/               # Telemetry schemas & Discord webhook transmitters (Layer 4)
 │   └── [other projects connecting to each other go here]
 ├── CMakeLists.txt               # Umbrella workspace orchestrator
@@ -55,15 +55,15 @@ target_link_libraries(my_app PRIVATE darling hotcwap vexspoke)
 When building standalone or in downstream projects:
 
 ```cmake
-if(NOT TARGET darling)
-    include(FetchContent)
-    FetchContent_Declare(
-        darling
-        GIT_REPOSITORY https://github.com/vexgraph-dev/darling.git
-        GIT_TAG main
-    )
-    FetchContent_MakeAvailable(darling)
-endif()
+if (NOT TARGET darling)
+  include(FetchContent)
+  FetchContent_Declare(
+          darling
+          GIT_REPOSITORY https://github.com/vexgraph-dev/darling.git
+          GIT_TAG font
+  )
+  FetchContent_MakeAvailable(darling)
+endif ()
 
 target_link_libraries(my_app PRIVATE darling)
 ```
@@ -80,7 +80,7 @@ target_link_libraries(my_app PRIVATE darling)
   * `label.h/.c` — High-performance text view with CoreText caching and SDF fallback.
   * `rich_label.h/.c` — Multi-line styled rich text node.
   * `scene.h/.c` — 3D/Vulkan view stamping node.
-* **`font/`** — Typography subsystem: `font.h/.c` atlas manager, `font_bake.h/.c` on-demand font generator, and `stb_truetype.h`.
+* **`text/`** — `rich_text.h/.c` layout parser and `text_core.h` platform bridge interface (font atlas/bake engine lives in `graphvex`).
 * **`text/`** — `rich_text.h/.c` layout parser and `text_core.h` platform bridge interface.
 * **`render/`** — Software rasterization: `raster.h/.c` and `surface.h/.c` for off-screen CPU drawing.
 * **`io/`** — `bake.c`, `mmap.c`, and `vfs.c` for fast virtual filesystem resolution and asset memory mapping.
@@ -90,7 +90,7 @@ target_link_libraries(my_app PRIVATE darling)
   * `vk_scene.h/.c` & `vk_view.h/.c` — Scene drawing passes and display cache managers.
   * `texture/texture.h/.c` — Texture uploading, caching, and sampling.
   * `shaders/` & `spv/` — Source compute/vertex/fragment shaders and precompiled SPIR-V binaries.
-* **`objc/`** — macOS platform bridges: `text_core.m` (CoreText rasterizer), `font_cocoa.m` (system font resolution), and `panel_cocoa.m` (CALayer / IOSurface compositing).
+* **`objc/`** — macOS platform bridges: `text_core.m` (CoreText rasterizer) and `panel_cocoa.m` (CALayer / IOSurface compositing). System font resolution (`font_cocoa.m`) moved down to `graphvex` with the font engine.
 
 ---
 
