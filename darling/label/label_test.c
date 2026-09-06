@@ -244,6 +244,41 @@ int main(void) {
         Label_free(lbl);
     }
 
+    // §6 Selection Substring & Clipboard
+    {
+        Label *lbl = Label_1("fn paint(w, h)");
+        Label_setHighlightable(lbl, true);
+        Label_setSelection(lbl, 3, 8);
+        char *sel = Label_getSelectedText(lbl);
+        CHECK("Label_getSelectedText valid", sel != nullptr && strcmp(sel, "paint") == 0);
+        if (sel)
+            Memory_free(sel);
+
+        // Test replacement
+        Label_setSelectedText(lbl, "render");
+        CHECK("Label_setSelectedText replaces selection", strcmp(Label_getText(lbl), "fn render(w, h)") == 0);
+
+        // Test outside click deselects
+        Label_setSize(lbl, 200.0f, 20.0f);
+        Label_setSelection(lbl, 3, 9);
+        int32_t s0 = -1, s1 = -1;
+        Label_getSelection(lbl, &s0, &s1);
+        CHECK("Label has selection before outside click", s0 == 3 && s1 == 9);
+        Label_handlePointer(lbl, PTR_DOWN, 300.0f, 50.0f, nullptr);
+        Label_getSelection(lbl, &s0, &s1);
+        CHECK("Label deselects on outside click", s0 == -1 && s1 == -1);
+
+#if defined(__APPLE__)
+        TextCore_copyToClipboard("Darling Clipboard Test");
+        char *pasted = TextCore_pasteFromClipboard();
+        CHECK("TextCore clipboard round-trip", pasted != nullptr && strcmp(pasted, "Darling Clipboard Test") == 0);
+        if (pasted)
+            free(pasted);
+#endif
+
+        Label_free(lbl);
+    }
+
     printf("\n=== Label & Cursor Test Summary: %d failures ===\n", g_failures);
     return g_failures > 0 ? 1 : 0;
 }
