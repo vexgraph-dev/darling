@@ -14,8 +14,8 @@
 // Central registry owns these once landed; the guard keeps this shell
 // compiling standalone until then.
 #ifndef TYPE_SECTION_PANEL_SINGLETON
-#define ID_SECTION_PANEL 0x0068u
-#define TYPE_SECTION_PANEL_SINGLETON (FORM_SINGLETON | ID_SECTION_PANEL)
+#define ID_SECTION_PANEL              0x0068u
+#define TYPE_SECTION_PANEL_SINGLETON  (FORM_SINGLETON | ID_SECTION_PANEL)
 #endif
 
 typedef struct SectionPanel {

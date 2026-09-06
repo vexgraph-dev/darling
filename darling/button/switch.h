@@ -14,8 +14,8 @@
 // Central registry owns these once landed; the guard keeps this shell
 // compiling standalone until then.
 #ifndef TYPE_SWITCH_SINGLETON
-#define ID_SWITCH 0x0091u
-#define TYPE_SWITCH_SINGLETON (FORM_SINGLETON | ID_SWITCH)
+#define ID_SWITCH              0x0091u
+#define TYPE_SWITCH_SINGLETON  (FORM_SINGLETON | ID_SWITCH)
 #endif
 
 typedef struct Switch {

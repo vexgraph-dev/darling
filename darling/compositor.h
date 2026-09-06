@@ -9,6 +9,13 @@
 //
 // Bridges darling UI panels, IOSurface overlays, and 3D scenes onto the
 // OS-stable window and Vulkan presentation pipeline.
+//
+// STACK LAW (front to back): scrollbar IOSurface -> 1st-gen children
+// IOSurfaces -> window CAMetalLayer. Layer 1 = window, layer 2 =
+// contentPanel placeholder, layer 3 = first-gen panels (own surface each;
+// deeper nesting paints inside the parent surface). Vulkan renders INSIDE
+// the IOSurfaces only and never presents the window — WindowServer owns
+// the composite. Resize moves layers via anchors; no repaint.
 
 // Initialize the darling compositor for the given window and register
 // frame rendering callbacks on the Vulkan presentation engine.

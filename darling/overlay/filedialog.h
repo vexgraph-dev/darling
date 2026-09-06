@@ -17,8 +17,8 @@
 #define TYPE_FILEDIALOG_SINGLETON (FORM_SINGLETON | ID_FILEDIALOG)
 #endif
 
-#define FILEDIALOG_PATH_MAX 512
-#define FILEDIALOG_FILTER_MAX 64
+#define FILEDIALOG_PATH_MAX    512
+#define FILEDIALOG_FILTER_MAX  64
 
 // darling/overlay/filedialog.h — modal file browser with open/cancel hooks.
 

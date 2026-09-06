@@ -17,8 +17,8 @@
 #define TYPE_RADIOGROUP_SINGLETON (FORM_SINGLETON | ID_RADIOGROUP)
 #endif
 
-#define RADIOGROUP_VERTICAL 0
-#define RADIOGROUP_HORIZONTAL 1
+#define RADIOGROUP_VERTICAL    0
+#define RADIOGROUP_HORIZONTAL  1
 
 // darling/field/radiogroup.h — single-choice option list with owned labels.
 
