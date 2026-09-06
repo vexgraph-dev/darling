@@ -1,0 +1,249 @@
+#include "annotation/overview.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <math.h>
+
+#include "darling/label/label.h"
+#include "darling/cursor/cursor.h"
+#include "text/text_core.h"
+#include "nio/mem.h"
+
+;;OVERVIEW
+/**
+ * ============================================================================
+ * MODULE: LabelTest (darling/label/label_test.c)
+ * LEVEL: L3 — Module Code (headless verification harness)
+ * ============================================================================
+ * Headless suite for Label typography, styling, mnemonic, and Cursor APIs.
+ *
+ * STRUCT FIELDS: none — procedural test harness.
+ *
+ * FUNCTION REGISTRY:
+ * ----------------------------------------------------------------------------
+ * Core Functions:
+ *   - main(void)
+ * ============================================================================
+ */
+
+static int g_failures = 0;
+
+#define CHECK(name, cond) do { \
+    if (cond) { printf("[label_test] PASS %s\n", name); } \
+    else { printf("[label_test] FAIL %s\n", name); g_failures++; } \
+} while (0)
+
+int main(void) {
+    printf("=== Running Label & Cursor Test Suite ===\n");
+
+    // §1 Cursor class verification
+    {
+        Cursor *cDef = Cursor_getPredefined(CURSOR_DEFAULT);
+        CHECK("Cursor predefined default", cDef != NULL && Cursor_getType(cDef) == CURSOR_DEFAULT);
+
+        Cursor *cIBeam = Cursor_getPredefined(CURSOR_IBEAM);
+        CHECK("Cursor predefined ibeam", cIBeam != NULL && Cursor_getType(cIBeam) == CURSOR_IBEAM);
+
+        Cursor *cHand = Cursor_getPredefined(CURSOR_POINTING_HAND);
+        CHECK("Cursor predefined hand", cHand != NULL && Cursor_getType(cHand) == CURSOR_POINTING_HAND);
+
+        Cursor *dyn = Cursor_1(CURSOR_CROSSHAIR);
+        CHECK("Cursor dynamic create", dyn != NULL && Cursor_getType(dyn) == CURSOR_CROSSHAIR);
+        Cursor_setType(dyn, CURSOR_RESIZE_EW);
+        CHECK("Cursor setType", Cursor_getType(dyn) == CURSOR_RESIZE_EW);
+        int dummy = 42;
+        Cursor_setCustomData(dyn, &dummy);
+        CHECK("Cursor customData", Cursor_getCustomData(dyn) == &dummy);
+        Cursor_free(dyn);
+        // Predefined free is safe no-op
+        Cursor_free(cIBeam);
+    }
+
+    // §2 Label construction & defaults
+    {
+        Label *lbl = Label_0();
+        CHECK("Label_0 created", lbl != NULL);
+        CHECK("Label default ligatures", Label_hasLigatures(lbl) == true);
+        CHECK("Label default spacingWidth", Label_getSpacingWidth(lbl) == 0.0f);
+        CHECK("Label default spacingHeight", Label_getSpacingHeight(lbl) == 0.0f);
+        CHECK("Label default underline", Label_getUnderline(lbl) == UNDERLINE_NONE);
+        CHECK("Label default underlineColor", Label_getUnderlineColor(lbl) == 0);
+        CHECK("Label default highlightable", Label_isHighlightable(lbl) == false);
+        CHECK("Label default mnemonic", Label_isMnemonic(lbl) == false);
+        CHECK("Label default cursor", Label_getCursor(lbl) != NULL && Cursor_getType(Label_getCursor(lbl)) == CURSOR_DEFAULT);
+        Label_free(lbl);
+    }
+
+    // §3 Highlightable & Caret & Cursor adaptation & Rounded Corner Richness
+    {
+        Label *lbl = Label_1("Selectable Text");
+        CHECK("Label_1 created", lbl != NULL);
+        CHECK("Label default highlightRadius", fabsf(Label_getHighlightRadius(lbl) - 3.0f) < 0.001f);
+        CHECK("Label default highlightColor", Label_getHighlightColor(lbl) == 0x662563EBu);
+        CHECK("Label default hovered", Label_isHovered(lbl) == false);
+
+        Label_setHighlightRadius(lbl, 5.0f);
+        CHECK("Label setHighlightRadius", fabsf(Label_getHighlightRadius(lbl) - 5.0f) < 0.001f);
+
+        Label_setHighlightColor(lbl, 0x88112233u);
+        CHECK("Label setHighlightColor", Label_getHighlightColor(lbl) == 0x88112233u);
+
+        uint8_t hr = 0, hg = 0, hb = 0, ha = 0;
+        Label_setHighlightColorRGBA(lbl, 40, 80, 160, 200);
+        Label_getHighlightColorRGBA(lbl, &hr, &hg, &hb, &ha);
+        CHECK("Label highlightColorRGBA r", hr == 40);
+        CHECK("Label highlightColorRGBA g", hg == 80);
+        CHECK("Label highlightColorRGBA b", hb == 160);
+        CHECK("Label highlightColorRGBA a", ha == 200);
+
+        Label_setHighlightable(lbl, true);
+        CHECK("Label highlightable set", Label_isHighlightable(lbl) == true);
+        CHECK("Label cursor adapted to I-beam", Label_getCursor(lbl) != NULL && Cursor_getType(Label_getCursor(lbl)) == CURSOR_IBEAM);
+
+        Label_setCaretPosition(lbl, 4);
+        CHECK("Label caret position", Label_getCaretPosition(lbl) == 4);
+
+        Label_setSelection(lbl, 2, 7);
+        int32_t sStart = -1, sEnd = -1;
+        Label_getSelection(lbl, &sStart, &sEnd);
+        CHECK("Label selection start", sStart == 2);
+        CHECK("Label selection end", sEnd == 7);
+
+        // Character offset mapping
+        Label_setSize(lbl, 150.0f, 24.0f);
+        int32_t i0 = Label_charIndexAt(lbl, 0.0f);
+        CHECK("Label_charIndexAt 0", i0 == 0);
+        int32_t iEnd = Label_charIndexAt(lbl, 1000.0f);
+        CHECK("Label_charIndexAt end", iEnd == 15);
+        int32_t iMid = Label_charIndexAt(lbl, 75.0f);
+        CHECK("Label_charIndexAt mid", iMid > 0 && iMid < 15);
+
+        // Pointer lifecycle simulation (no window, dummy pointer)
+        // 1. Hover inside bounds
+        Label_handlePointer(lbl, PTR_HOVER, 50.0f, 10.0f, NULL);
+        CHECK("Label hovered inside", Label_isHovered(lbl) == true);
+
+        // 2. Hover outside bounds -> leave
+        Label_handlePointer(lbl, PTR_MOVE, 200.0f, 10.0f, NULL);
+        CHECK("Label unhovered outside", Label_isHovered(lbl) == false);
+
+        // 3. Pointer down -> start selection
+        Label_handlePointer(lbl, PTR_DOWN, 30.0f, 10.0f, NULL);
+        int32_t dStart = -1, dEnd = -1;
+        Label_getSelection(lbl, &dStart, &dEnd);
+        CHECK("Label pointer down selection initialized", dStart >= 0 && dStart == dEnd);
+        CHECK("Label caret follows pointer down", Label_getCaretPosition(lbl) == dStart);
+
+        // 4. Pointer drag -> expand selection
+        Label_handlePointer(lbl, PTR_DRAG, 120.0f, 10.0f, NULL);
+        Label_getSelection(lbl, &dStart, &dEnd);
+        CHECK("Label pointer drag selection expanded", dEnd > dStart);
+        CHECK("Label caret follows drag", Label_getCaretPosition(lbl) == dEnd);
+
+        // 5. Pointer up -> selection preserved
+        Label_handlePointer(lbl, PTR_UP, 120.0f, 10.0f, NULL);
+        int32_t uStart = -1, uEnd = -1;
+        Label_getSelection(lbl, &uStart, &uEnd);
+        CHECK("Label pointer up preserves selection", uStart == dStart && uEnd == dEnd);
+
+        // 6. Explicit PTR_LEAVE
+        Label_handlePointer(lbl, PTR_HOVER, 50.0f, 10.0f, NULL);
+        CHECK("Label re-hovered", Label_isHovered(lbl) == true);
+        Label_handlePointer(lbl, PTR_LEAVE, 0.0f, 0.0f, NULL);
+        CHECK("Label PTR_LEAVE unhovered", Label_isHovered(lbl) == false);
+
+        // 7. PointerEvent struct dispatch via Label_onPointer
+        PointerEvent *pev = PointerEvent_4(PTR_HOVER, 40.0f, 8.0f, 0);
+        Label_onPointer(lbl, pev, NULL);
+        CHECK("Label_onPointer hover", Label_isHovered(lbl) == true);
+        PointerEvent_setKind(pev, PTR_LEAVE);
+        Label_onPointer(lbl, pev, NULL);
+        CHECK("Label_onPointer leave", Label_isHovered(lbl) == false);
+        Memory_free(pev);
+
+        Label_setHighlightable(lbl, false);
+        CHECK("Label highlightable cleared", Label_isHighlightable(lbl) == false);
+        CHECK("Label cursor reverted to default", Label_getCursor(lbl) != NULL && Cursor_getType(Label_getCursor(lbl)) == CURSOR_DEFAULT);
+        CHECK("Label selection cleared on disable", Label_isHovered(lbl) == false);
+
+        Label_free(lbl);
+    }
+
+    // §4 Spacing & Underline & Ligatures
+    {
+        Label *lbl = Label_1("Typography Text");
+        Label_setLigatures(lbl, false);
+        CHECK("Label ligatures false", Label_hasLigatures(lbl) == false);
+        Label_setLigatures(lbl, true);
+        CHECK("Label ligatures true", Label_hasLigatures(lbl) == true);
+
+        Label_setSpacingWidth(lbl, 2.5f);
+        CHECK("Label spacingWidth", fabsf(Label_getSpacingWidth(lbl) - 2.5f) < 0.001f);
+        Label_setSpacingHeight(lbl, 4.0f);
+        CHECK("Label spacingHeight", fabsf(Label_getSpacingHeight(lbl) - 4.0f) < 0.001f);
+
+        float sw = 0, sh = 0;
+        Label_setSpacing(lbl, 1.5f, 3.5f);
+        Label_getSpacing(lbl, &sw, &sh);
+        CHECK("Label getSpacing width", fabsf(sw - 1.5f) < 0.001f);
+        CHECK("Label getSpacing height", fabsf(sh - 3.5f) < 0.001f);
+
+        Label_setUnderline(lbl, UNDERLINE_BASIC);
+        CHECK("Label underline basic", Label_getUnderline(lbl) == UNDERLINE_BASIC);
+        Label_setUnderline(lbl, UNDERLINE_STRIKETHROUGH);
+        CHECK("Label underline strikethrough", Label_getUnderline(lbl) == UNDERLINE_STRIKETHROUGH);
+        Label_setUnderline(lbl, UNDERLINE_JAGGED);
+        CHECK("Label underline jagged", Label_getUnderline(lbl) == UNDERLINE_JAGGED);
+
+        Label_setUnderlineColor(lbl, 0xFFFF0000);
+        CHECK("Label underline color packed", Label_getUnderlineColor(lbl) == 0xFFFF0000);
+
+        uint8_t r = 0, g = 0, b = 0, a = 0;
+        Label_setUnderlineColorRGBA(lbl, 128, 64, 32, 255);
+        Label_getUnderlineColorRGBA(lbl, &r, &g, &b, &a);
+        CHECK("Label underline RGBA r", r == 128);
+        CHECK("Label underline RGBA g", g == 64);
+        CHECK("Label underline RGBA b", b == 32);
+        CHECK("Label underline RGBA a", a == 255);
+
+        Label_free(lbl);
+    }
+
+    // §5 Mnemonic Parsing & CoreText Raster
+    {
+        Label *lbl = Label_1("&Open File...");
+        Label_setMnemonic(lbl, true);
+        CHECK("Label mnemonic enabled", Label_isMnemonic(lbl) == true);
+
+        // Rasterization will trigger ensureRaster -> mnemonic parse & rounded highlight
+        uint8_t *rgba = NULL;
+        int rw = 0, rh = 0;
+        TextStyleDescriptor desc = {
+            .ligatures = true,
+            .spacingWidth = 1.0f,
+            .spacingHeight = 0.0f,
+            .underline = UNDERLINE_BASIC,
+            .underlineColor = 0xFF00FF00,
+            .mnemonicIndex = 0,
+            .selectionStart = 0,
+            .selectionEnd = 4,
+            .highlightRadius = 4.0f,
+            .highlightColor = 0x662563EBu,
+        };
+        bool ok = TextCore_rasterStyled("Open File...", "Helvetica", 24.0f, 0xFFFFFFFF, &desc, &rgba, &rw, &rh);
+#if defined(__APPLE__)
+        CHECK("TextCore_rasterStyled on Apple", ok == true && rgba != NULL && rw > 0 && rh > 0);
+        if (rgba) free(rgba);
+#else
+        (void) ok;
+        (void) rw;
+        (void) rh;
+#endif
+
+        Label_free(lbl);
+    }
+
+    printf("\n=== Label & Cursor Test Summary: %d failures ===\n", g_failures);
+    return g_failures > 0 ? 1 : 0;
+}
