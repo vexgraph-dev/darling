@@ -25,24 +25,35 @@
  *   - RichLabel_0(void)
  *   - RichLabel_1(parent)
  *
+ * Core Functions:
+ *   - RichLabel_renderFn(panel, rend, cmd, surfaceW, surfaceH, x, y, w, h) : Draw handler
+ *
  * Setters:
  *   - RichLabel_setTextModel(label, model)
  *   - RichLabel_setWrapMode(label, mode)
  * ============================================================================
  */
 
+// ============================================================================
+// CORE FUNCTIONS
+// ============================================================================
 
-static void RichLabel_renderFn(Panel *panel, void *renderer, void *cmdBuffer, float x, float y, float w, float h) {
+static void RichLabel_renderFn(Panel *panel, void *renderer, void *cmdBuffer, float surfaceW, float surfaceH,
+                               float x, float y, float w, float h) {
     RichLabel *rl = (RichLabel*) panel;
     (void)renderer;
-    
+
+    float op = panel ? Container_getOpacity(&(*panel).base) : 1.0f;
+    if (op <= 0.0f)
+        return;
     uint32_t bgColor = Panel_getBackgroundColor(panel);
     if ((bgColor >> 24) > 0) {
         float br = ((bgColor >> 16) & 0xFF) / 255.0f;
         float bg = ((bgColor >> 8) & 0xFF) / 255.0f;
         float bb = (bgColor & 0xFF) / 255.0f;
-        float ba = ((bgColor >> 24) & 0xFF) / 255.0f;
-        Vk_fillRect(cmdBuffer, w, h, x, y, w, h, br, bg, bb, ba);
+        float ba = ((bgColor >> 24) & 0xFF) / 255.0f * op;
+        if (ba > 0.0f)
+            Vk_fillRect(cmdBuffer, surfaceW, surfaceH, x, y, w, h, br, bg, bb, ba);
     }
     
     RichText *tm = (*rl).textModel;
@@ -54,7 +65,7 @@ static void RichLabel_renderFn(Panel *panel, void *renderer, void *cmdBuffer, fl
         float cr = (((*q).color >> 16) & 0xFF) / 255.0f;
         float cg = (((*q).color >> 8) & 0xFF) / 255.0f;
         float cb = ((*q).color & 0xFF) / 255.0f;
-        float ca = (((*q).color >> 24) & 0xFF) / 255.0f;
+        float ca = (((*q).color >> 24) & 0xFF) / 255.0f * op;
         
         float qx = x + (*q).x;
         float qy = y + (*q).y;
@@ -62,17 +73,21 @@ static void RichLabel_renderFn(Panel *panel, void *renderer, void *cmdBuffer, fl
         if ((*q).decor != DECOR_NONE || (*q).textureId < 0) {
             // TODO: Pass decor to a specialized shader for Dash/Squiggle.
             // For now, it draws a solid line.
-            Vk_fillRect(cmdBuffer, w, h, qx, qy, (*q).w, (*q).h, cr, cg, cb, ca);
+            Vk_fillRect(cmdBuffer, surfaceW, surfaceH, qx, qy, (*q).w, (*q).h, cr, cg, cb, ca);
         } else if ((*q).isColor) {
-            Vk_drawColorGlyph(cmdBuffer, w, h, qx, qy, (*q).w, (*q).h,
+            Vk_drawColorGlyph(cmdBuffer, surfaceW, surfaceH, qx, qy, (*q).w, (*q).h,
                               ca, (*q).textureId, (*q).u0, (*q).v0, (*q).u1, (*q).v1);
         } else {
-            Vk_drawSDFText(cmdBuffer, w, h, qx, qy, (*q).w, (*q).h, 
+            Vk_drawSDFText(cmdBuffer, surfaceW, surfaceH, qx, qy, (*q).w, (*q).h,
                            cr, cg, cb, ca, (*q).textureId, (*q).bold, 0.5f,
                            (*q).u0, (*q).v0, (*q).u1, (*q).v1);
         }
     }
 }
+
+// ============================================================================
+// CONSTRUCTORS
+// ============================================================================
 
 RichLabel *RichLabel_0(void) {
     RichLabel *rl = (RichLabel*) Memory_alloc(TYPE_PANEL_SINGLETON, sizeof(RichLabel));
@@ -101,6 +116,10 @@ RichLabel *RichLabel_1(Panel *parent) {
     }
     return rl;
 }
+
+// ============================================================================
+// SETTERS
+// ============================================================================
 
 void RichLabel_setTextModel(RichLabel *label, RichText *model) {
     if (!label) return;
