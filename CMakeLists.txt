@@ -57,6 +57,7 @@ add_library(darling STATIC
     darling/compositor.c
     darling/container.c
     darling/anim/anim.c
+    darling/cursor/cursor.c
     darling/label/label.c
     darling/panel/panel.c
     darling/picture/picture.c
@@ -64,6 +65,12 @@ add_library(darling STATIC
     darling/scene/scene.c
     darling/panel/layeredpanel.c
     darling/panel/sectionpanel.c
+    darling/panel/list_panel.c
+    darling/panel/grid_panel.c
+    darling/panel/markdown_panel.c
+    darling/panel/richtext_panel.c
+    darling/panel/scroll_panel.c
+    darling/field/scrollbar.c
     darling/button/button.c
     darling/button/switch.c
     darling/field/checkbox.c
@@ -119,16 +126,16 @@ if(TARGET graphvex)
 endif()
 
 # Cocoa UI shims (macOS only): panel layers, CoreText raster, font lookup.
+# NOTE: objc/font_cocoa.m (System_* font bridge) moved down to graphvex with
+# the font engine — graphvex links it, darling consumes via link (Rule 17).
 if(APPLE)
     target_sources(darling PRIVATE
         objc/panel_cocoa.m
         objc/text_core.m
-        objc/font_cocoa.m
     )
     set_source_files_properties(
         objc/panel_cocoa.m
         objc/text_core.m
-        objc/font_cocoa.m
         PROPERTIES COMPILE_OPTIONS "-fobjc-arc"
     )
     target_link_libraries(darling PUBLIC
@@ -150,6 +157,30 @@ if(NOT TARGET darling::ui)
     add_library(darling::ui ALIAS darling)
 endif()
 
+# Live demo harness: two-thread decoupled painter (draw worker + Thread 0
+# compositor). Umbrella probe — target lives in vexgraph/CMakeLists.txt
+# (main/darlingtest.c) so standalone darling never sees umbrella paths.
+
+# Headless baked-font installer CLI (no window, no GPU): the one harness
+# this agent can execute end-to-end here.
+if(NOT TARGET fontbake)
+    add_executable(fontbake
+        font/fontbake.c
+    )
+    target_link_libraries(fontbake PRIVATE graphvex vexspoke)
+endif()
+
+# Widget gallery + test suite: umbrella probe — target lives in
+# vexgraph/CMakeLists.txt (main/darling_gallery.c).
+
+# Phase 1 substrate artifact (layout-panels §8): headless rounded-rect diff.
+if(NOT TARGET corner_test)
+    add_executable(corner_test
+        render/corner_test.c
+    )
+    target_link_libraries(corner_test PRIVATE darling)
+endif()
+
 # Anim artifact (anim §1): headless easing + keyframe player suite.
 if(NOT TARGET anim_test)
     add_executable(anim_test
@@ -157,3 +188,12 @@ if(NOT TARGET anim_test)
     )
     target_link_libraries(anim_test PRIVATE darling)
 endif()
+
+# Label & Cursor artifact: headless typography, styling, mnemonic, and cursor suite.
+if(NOT TARGET label_test)
+    add_executable(label_test
+        darling/label/label_test.c
+    )
+    target_link_libraries(label_test PRIVATE darling)
+endif()
+
