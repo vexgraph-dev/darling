@@ -34,9 +34,18 @@
  *   2. Input:  syncFromBar maps a dragged/clicked bar value back into
  *      offsetY so grabbing the thumb scrolls the content.
  * The bar is a child of the viewport (painted on top, clipped with it).
+ * The viewport RIGHT-DOCKS it on every content/bar/sync pass: TOP_RIGHT /
+ * TOP_RIGHT at (0,0), 10px wide, full viewport height. Anchors are the
+ * whole trick — the layer bridge (anti_GetChildLayout + autoresizingMask)
+ * resolves them live per resize, so the thumb tracks the edge with zero
+ * repaint: Vulkan layers below, IOSurface in the middle, CALayer on top
+ * (the vk_test stack), all moving without touching a pixel. That is why
+ * the bar lives at the right: it is a layer pinned to an edge, not a
+ * painted rect.
  * Hide it with ScrollPanel_scrollbar_setVisible when it gets in the way —
  * touch readers, fullscreen galleries, game logs, auto-hiding overlays —
  * and the offsets keep working exactly the same with no thumb on screen.
+ * Swap it with ScrollPanel_scrollbar_setBar (detach-only, sync survives).
  * The bar never owns the offset; hiding never disables scrolling.
  *
  * FEEL (touchscreen physics):
@@ -56,6 +65,14 @@
  *                    velocity, decay by friction, spring back overshoot.
  *                    Call it once per frame while isScrolling, or always —
  *                    it is a cheap no-op at rest inside the bounds.
+ *
+ * DIRECTION (which way deltas push content):
+ * ----------------------------------------------------------------------------
+ *   setNatural(true)  — gesture-following (ox+dx, oy-dy): fingers-down
+ *                       (dy>0) pushes the content down, like a hand on paper.
+ *   setNatural(false) — legacy inverted mapping for rigs that disagree.
+ *   scrollBy(dx, dy)  — the ONLY call-site entry for raw deltas; it owns
+ *                       the flag. Callers never hand-negate signs.
  *
  * CONTENT-PANEL PART (modify the panel through here):
  * ----------------------------------------------------------------------------
@@ -82,6 +99,8 @@
  *   float velX, velY;            // Fling velocity px/sec (tick decays)
  *   float slippery;              // 0 stops dead, 1 long glide (default 0)
  *   float overscroll;            // Rubber-band px past ends (0 = disabled)
+ *   --- Direction part (owner field) ---
+ *   bool natural;                // True: deltas as-is; false: flipped
  *
  * FUNCTION REGISTRY:
  * ----------------------------------------------------------------------------
@@ -91,6 +110,7 @@
  * Core Functions:
  *   - ScrollPanel_setContent(sp, content)
  *   - ScrollPanel_setOffset(sp, x, y)
+ *   - ScrollPanel_setViewportSize(sp, w, h)
  *   - ScrollPanel_syncFromBar(sp)
  *   - ScrollPanel_syncToBar(sp)
  *
@@ -109,10 +129,17 @@
  *   - ScrollPanel_stop(sp)
  *   - ScrollPanel_tick(sp, dt)
  *
+ * Direction part:
+ *   - ScrollPanel_setNatural(sp, natural)
+ *   - ScrollPanel_scrollBy(sp, dx, dy)
+ *
  * Content-panel part:
  *   - ScrollPanel_panel_setSize(sp, w, h)
  *   - ScrollPanel_panel_setBackgroundColor(sp, color)
  *   - ScrollPanel_panel_setRadius(sp, radius)
+ *
+ * Layer part:
+ *   - ScrollPanel_childFrame(sp, child, winW, winH, outX, outY, outW, outH)
  *
  * Getters:
  *   - ScrollPanel_getContent(sp)
@@ -126,6 +153,7 @@
  *   - ScrollPanel_getVelocity(sp, outVX, outVY)
  *   - ScrollPanel_isScrolling(sp)
  *   - ScrollPanel_isOverscrolled(sp)
+ *   - ScrollPanel_isNatural(sp)
  *   - ScrollPanel_panel_getSize(sp, outW, outH)
  *   - ScrollPanel_panel_getBackgroundColor(sp)
  *   - ScrollPanel_panel_getRadius(sp)
@@ -133,6 +161,9 @@
  */
 
 // CONSTRUCTORS
+
+static void layoutBar(ScrollPanel *sp);
+static void raiseBar(ScrollPanel *sp);
 
 ScrollPanel *ScrollPanel_2(float viewW, float viewH) {
     ScrollPanel *sp = (ScrollPanel*) Memory_alloc(TYPE_SCROLL_PANEL_SINGLETON, sizeof(ScrollPanel));
@@ -156,6 +187,7 @@ ScrollPanel *ScrollPanel_2(float viewW, float viewH) {
     (*sp).velY = 0.0f;
     (*sp).slippery = 0.0f;
     (*sp).overscroll = 0.0f;
+    (*sp).natural = true;
     Panel *self = &(*sp).base;
     Container *c = &(*self).base;
     Container_setSize(c, viewW, viewH);
@@ -168,6 +200,7 @@ ScrollPanel *ScrollPanel_2(float viewW, float viewH) {
     Panel *thumb = &(*bar).base;
     Panel_addContainer(self, thumb);
     (*sp).bar = bar;
+    layoutBar(sp);
     return sp;
 }
 
@@ -186,6 +219,47 @@ static void markDirty(ScrollPanel *sp) {
         return;
     Panel *b = &(*sp).base;
     Container_markDirty(&(*b).base);
+}
+
+// Right-dock: the bar hugs the viewport's right edge (TOP_RIGHT/TOP_RIGHT
+// at (0,0), 10px wide, full viewport height). Anchors are the whole trick:
+// the layer bridge resolves them live per resize (anti_GetChildLayout +
+// autoresizingMask), so the thumb tracks the edge with zero repaint —
+// Vulkan layers below, IOSurface in the middle, CALayer on top, all moving
+// without touching a pixel. Max tracks the viewport so later growth is
+// never clamped by the first layout's ceiling. Idempotent: safe to run on
+// every content/bar/sync pass.
+#define SCROLLBAR_THICKNESS 10.0f
+
+static void layoutBar(ScrollPanel *sp) {
+    if (!sp || !(*sp).bar)
+        return;
+    Panel *self = &(*sp).base;
+    float vh = Container_getHeight(&(*self).base);
+    Panel *thumb = &(*(*sp).bar).base;
+    Container *bc = &(*thumb).base;
+    Container_setParentAnchor(bc, CONTAINER_PARENT_ANCHOR_TOP_RIGHT);
+    Container_setSelfAnchor(bc, CONTAINER_SELF_ANCHOR_TOP_RIGHT);
+    Container_setLocation(bc, 0.0f, 0.0f);
+    Container_setMaxSize(bc, SCROLLBAR_THICKNESS, vh);
+    Container_setSize(bc, SCROLLBAR_THICKNESS, vh);
+    raiseBar(sp);
+}
+
+// Topmost rule: the compositor stacks child layers in child order (later =
+// front), so the scrollbar must be the LAST child — above the content,
+// below nothing. Re-assert after every structural pass; the guard makes
+// repeat runs free.
+static void raiseBar(ScrollPanel *sp) {
+    if (!sp || !(*sp).bar || !(*sp).content)
+        return;
+    Panel *self = &(*sp).base;
+    Panel *thumb = &(*(*sp).bar).base;
+    size_t n = Panel_childCount(self);
+    if (n == 0 || Panel_getChild(self, n - 1) == thumb)
+        return;
+    if (Panel_removeChild(self, thumb))
+        Panel_addContainer(self, thumb);
 }
 
 static void offsetBounds(const ScrollPanel *sp, float *loX, float *hiX, float *loY, float *hiY) {
@@ -235,7 +309,21 @@ void ScrollPanel_setContent(ScrollPanel *sp, Panel *content) {
         Panel_addContainer(self, content);
         (*sp).content = content;
     }
+    layoutBar(sp);
     ScrollPanel_setOffset(sp, (*sp).offsetX, (*sp).offsetY);
+}
+
+void ScrollPanel_setViewportSize(ScrollPanel *sp, float w, float h) {
+    if (!sp)
+        return;
+    Panel *self = &(*sp).base;
+    Container *vc = &(*self).base;
+    // Lift the first-size ceiling: the viewport follows the window, so its
+    // max IS the window. Content is untouched — its size is its own business.
+    Container_setMaxSize(vc, w, h);
+    Container_setSize(vc, w, h);
+    layoutBar(sp); // re-dock: same 10px, new right edge, full new height
+    ScrollPanel_setOffset(sp, (*sp).offsetX, (*sp).offsetY); // re-clamp
 }
 
 void ScrollPanel_setOffset(ScrollPanel *sp, float x, float y) {
@@ -291,6 +379,7 @@ void ScrollPanel_syncToBar(ScrollPanel *sp) {
     float bmax = 1.0f;
     ScrollBar_getRange(bar, &bmin, &bmax);
     ScrollBar_setValue(bar, bmin + t * (bmax - bmin));
+    layoutBar(sp);
 }
 
 // SCROLLBAR PART
@@ -323,6 +412,7 @@ void ScrollPanel_scrollbar_setBar(ScrollPanel *sp, ScrollBar *bar) {
     Panel_addContainer(self, &(*bar).base);
     (*sp).bar = bar;
     applyBarVisible(sp);
+    layoutBar(sp);
     ScrollPanel_syncToBar(sp);
     markDirty(sp);
 }
@@ -365,6 +455,30 @@ void ScrollPanel_stop(ScrollPanel *sp) {
         return;
     (*sp).velX = 0.0f;
     (*sp).velY = 0.0f;
+}
+
+// DIRECTION PART
+
+// Deltas arrive raw from the OS. natural=true applies the gesture-following
+// mapping (ox+dx, oy-dy): fingers-down (dy>0) pushes the content down, the
+// way a hand on paper behaves. false restores the legacy inverted mapping
+// for rigs that disagree. If fingers and content ever disagree, this one
+// flag is the entire argument — never hand-negate at the call site.
+void ScrollPanel_setNatural(ScrollPanel *sp, bool natural) {
+    if (!sp)
+        return;
+    (*sp).natural = natural;
+}
+
+void ScrollPanel_scrollBy(ScrollPanel *sp, float dx, float dy) {
+    if (!sp)
+        return;
+    float ox = 0.0f, oy = 0.0f;
+    ScrollPanel_getOffset(sp, &ox, &oy);
+    if ((*sp).natural)
+        ScrollPanel_setOffset(sp, ox + dx, oy - dy);
+    else
+        ScrollPanel_setOffset(sp, ox - dx, oy + dy);
 }
 
 static float tickAxis(float off, float *vel, float lo, float hi, float over, float friction, double dt) {
@@ -512,6 +626,10 @@ bool ScrollPanel_isScrolling(const ScrollPanel *sp) {
     return sp && ((*sp).velX != 0.0f || (*sp).velY != 0.0f);
 }
 
+bool ScrollPanel_isNatural(const ScrollPanel *sp) {
+    return sp && (*sp).natural;
+}
+
 bool ScrollPanel_isOverscrolled(const ScrollPanel *sp) {
     if (!sp)
         return false;
@@ -543,4 +661,38 @@ float ScrollPanel_panel_getRadius(const ScrollPanel *sp) {
     if (sp && (*sp).content)
         return Panel_getRadius((*sp).content);
     return 0.0f;
+}
+
+// LAYER PART
+
+void ScrollPanel_childFrame(const ScrollPanel *sp, const Panel *child, float winW, float winH,
+                            float *outX, float *outY, float *outW, float *outH) {
+    float x = 0.0f, y = 0.0f, w = 0.0f, h = 0.0f;
+    if (sp && child) {
+        Vec4 rect;
+        Panel *self = (Panel *)&(*sp).base;
+        float vw = Container_getWidth(&(*self).base);
+        float vh = Container_getHeight(&(*self).base);
+        Container_resolve(&((Panel *)child)->base, 0.0f, 0.0f, vw, vh, &rect);
+        x = rect.x;
+        y = rect.y;
+        w = rect.z;
+        h = rect.w;
+        // Content scrolls under the viewport; chrome (the bar) stays put.
+        Panel *bar = (*sp).bar ? &(*(*sp).bar).base : nullptr;
+        if (child != bar) {
+            x -= (*sp).offsetX;
+            y -= (*sp).offsetY;
+        }
+    }
+    (void)winW;
+    (void)winH; // reserved: the viewport itself resolves against the window upstream
+    if (outX)
+        (*outX) = x;
+    if (outY)
+        (*outY) = y;
+    if (outW)
+        (*outW) = w;
+    if (outH)
+        (*outH) = h;
 }

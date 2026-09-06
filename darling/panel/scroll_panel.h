@@ -42,6 +42,8 @@ typedef struct ScrollPanel {
     float velY;
     float slippery;   // 0 stops dead, 1 long glide (default 0)
     float overscroll; // rubber-band px past each end (0 = disabled)
+    // --- Direction part (owner field: which way deltas push content) ---
+    bool natural;     // true: gesture-following (ox+dx, oy-dy); false: legacy flip
     // NOTE: the content-panel part (panel_* verbs) owns NO fields here —
     // it forwards to content above. New stored panel state is a smell.
 } ScrollPanel;
@@ -55,6 +57,10 @@ ScrollPanel *ScrollPanel_2(float viewW, float viewH);
 // Core (content attach is detach-only, never frees; bar<->offset stay synced).
 void ScrollPanel_setContent(ScrollPanel *sp, Panel *content);
 void ScrollPanel_setOffset(ScrollPanel *sp, float x, float y);
+// Viewport tracks the window: resizes SELF (lifting the first-size ceiling),
+// re-docks the bar, re-clamps the offset. Content keeps its own size —
+// that is the point of a content panel. Call on every window resize.
+void ScrollPanel_setViewportSize(ScrollPanel *sp, float w, float h);
 void ScrollPanel_syncFromBar(ScrollPanel *sp);
 void ScrollPanel_syncToBar(ScrollPanel *sp);
 
@@ -73,10 +79,21 @@ void ScrollPanel_fling(ScrollPanel *sp, float vx, float vy);
 void ScrollPanel_stop(ScrollPanel *sp);
 void ScrollPanel_tick(ScrollPanel *sp, double dt);
 
+// Direction part (which way trackpad/mouse deltas push the content).
+void ScrollPanel_setNatural(ScrollPanel *sp, bool natural);
+void ScrollPanel_scrollBy(ScrollPanel *sp, float dx, float dy);
+
 // Content-panel part (modify the panel through here, never panel->field).
 void ScrollPanel_panel_setSize(ScrollPanel *sp, float w, float h);
 void ScrollPanel_panel_setBackgroundColor(ScrollPanel *sp, uint32_t color);
 void ScrollPanel_panel_setRadius(ScrollPanel *sp, float radius);
+
+// Layer part (window-IS-scrollpanel model): resolve a direct child to its
+// scrolled frame. Content children move by -offset (they scroll); the bar
+// resolves undocked (chrome stays). The layer bridge calls this per child
+// instead of raw Container_resolve — C-side resolve is the source of truth.
+void ScrollPanel_childFrame(const ScrollPanel *sp, const Panel *child, float winW, float winH,
+                            float *outX, float *outY, float *outW, float *outH);
 
 // Getters.
 Panel *ScrollPanel_getContent(const ScrollPanel *sp);
@@ -94,6 +111,9 @@ float ScrollPanel_getOverscroll(const ScrollPanel *sp);
 void ScrollPanel_getVelocity(const ScrollPanel *sp, float *outVX, float *outVY);
 bool ScrollPanel_isScrolling(const ScrollPanel *sp);
 bool ScrollPanel_isOverscrolled(const ScrollPanel *sp);
+
+// Direction-part getters.
+bool ScrollPanel_isNatural(const ScrollPanel *sp);
 
 // Content-panel-part getters.
 void ScrollPanel_panel_getSize(const ScrollPanel *sp, float *outW, float *outH);
