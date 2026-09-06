@@ -18,8 +18,8 @@
 // Central registry owns these once landed; the guard keeps this shell
 // compiling standalone until then.
 #ifndef TYPE_ACTION_EVENT_SINGLETON
-#define ID_ACTION_EVENT 0x00A5u
-#define TYPE_ACTION_EVENT_SINGLETON (FORM_SINGLETON | ID_ACTION_EVENT)
+#define ID_ACTION_EVENT              0x00A5u
+#define TYPE_ACTION_EVENT_SINGLETON  (FORM_SINGLETON | ID_ACTION_EVENT)
 #endif
 
 typedef struct ActionEvent {

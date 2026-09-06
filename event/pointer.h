@@ -17,8 +17,8 @@
 // Central registry owns these once landed; the guard keeps this shell
 // compiling standalone until then.
 #ifndef TYPE_POINTER_EVENT_SINGLETON
-#define ID_POINTER_EVENT 0x00A2u
-#define TYPE_POINTER_EVENT_SINGLETON (FORM_SINGLETON | ID_POINTER_EVENT)
+#define ID_POINTER_EVENT              0x00A2u
+#define TYPE_POINTER_EVENT_SINGLETON  (FORM_SINGLETON | ID_POINTER_EVENT)
 #endif
 
 enum {

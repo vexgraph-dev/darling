@@ -17,8 +17,8 @@
 // Central registry owns these once landed; the guard keeps this shell
 // compiling standalone until then.
 #ifndef TYPE_FOCUS_EVENT_SINGLETON
-#define ID_FOCUS_EVENT 0x00A4u
-#define TYPE_FOCUS_EVENT_SINGLETON (FORM_SINGLETON | ID_FOCUS_EVENT)
+#define ID_FOCUS_EVENT              0x00A4u
+#define TYPE_FOCUS_EVENT_SINGLETON  (FORM_SINGLETON | ID_FOCUS_EVENT)
 #endif
 
 typedef struct FocusEvent {

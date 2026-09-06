@@ -18,8 +18,8 @@
 // Central registry owns these once landed; the guard keeps this shell
 // compiling standalone until then.
 #ifndef TYPE_VALUE_EVENT_SINGLETON
-#define ID_VALUE_EVENT 0x00A6u
-#define TYPE_VALUE_EVENT_SINGLETON (FORM_SINGLETON | ID_VALUE_EVENT)
+#define ID_VALUE_EVENT              0x00A6u
+#define TYPE_VALUE_EVENT_SINGLETON  (FORM_SINGLETON | ID_VALUE_EVENT)
 #endif
 
 typedef struct ValueEvent {

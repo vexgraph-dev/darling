@@ -17,8 +17,8 @@
 // Central registry owns these once landed; the guard keeps this shell
 // compiling standalone until then.
 #ifndef TYPE_TREE_EVENT_SINGLETON
-#define ID_TREE_EVENT 0x00A7u
-#define TYPE_TREE_EVENT_SINGLETON (FORM_SINGLETON | ID_TREE_EVENT)
+#define ID_TREE_EVENT              0x00A7u
+#define TYPE_TREE_EVENT_SINGLETON  (FORM_SINGLETON | ID_TREE_EVENT)
 #endif
 
 typedef struct TreeEvent {

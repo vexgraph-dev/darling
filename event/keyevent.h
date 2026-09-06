@@ -22,8 +22,8 @@
 // Central registry owns these once landed; the guard keeps this shell
 // compiling standalone until then.
 #ifndef TYPE_KEY_EVENT_SINGLETON
-#define ID_KEY_EVENT 0x00A3u
-#define TYPE_KEY_EVENT_SINGLETON (FORM_SINGLETON | ID_KEY_EVENT)
+#define ID_KEY_EVENT              0x00A3u
+#define TYPE_KEY_EVENT_SINGLETON  (FORM_SINGLETON | ID_KEY_EVENT)
 #endif
 
 typedef struct UIKeyEvent {

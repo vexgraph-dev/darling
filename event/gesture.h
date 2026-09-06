@@ -18,8 +18,8 @@
 // Central registry owns these once landed; the guard keeps this shell
 // compiling standalone until then.
 #ifndef TYPE_GESTURE_EVENT_SINGLETON
-#define ID_GESTURE_EVENT 0x00A8u
-#define TYPE_GESTURE_EVENT_SINGLETON (FORM_SINGLETON | ID_GESTURE_EVENT)
+#define ID_GESTURE_EVENT              0x00A8u
+#define TYPE_GESTURE_EVENT_SINGLETON  (FORM_SINGLETON | ID_GESTURE_EVENT)
 #endif
 
 enum {
