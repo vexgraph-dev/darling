@@ -327,3 +327,27 @@ bool TextCore_rasterStyled(const char *utf8, const char *family, float pxHeight,
         return true;
     }
 }
+
+void TextCore_copyToClipboard(const char *utf8) {
+    if (!utf8)
+        return;
+    @autoreleasepool {
+        NSPasteboard *pb = [NSPasteboard generalPasteboard];
+        [pb clearContents];
+        NSString *str = [NSString stringWithUTF8String:utf8];
+        if (str) {
+            [pb setString:str forType:NSPasteboardTypeString];
+        }
+    }
+}
+
+char *TextCore_pasteFromClipboard(void) {
+    @autoreleasepool {
+        NSPasteboard *pb = [NSPasteboard generalPasteboard];
+        NSString *str = [pb stringForType:NSPasteboardTypeString];
+        if (!str)
+            return nullptr;
+        const char *utf8 = [str UTF8String];
+        return utf8 ? strdup(utf8) : nullptr;
+    }
+}

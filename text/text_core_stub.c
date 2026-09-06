@@ -55,3 +55,11 @@ bool TextCore_rasterStyled(const char *utf8, const char *family, float pxHeight,
     (void) style;
     return TextCore_rasterLine(utf8, family, pxHeight, argb, outRgba, outW, outH);
 }
+
+void TextCore_copyToClipboard(const char *utf8) {
+    (void) utf8;
+}
+
+char *TextCore_pasteFromClipboard(void) {
+    return nullptr;
+}

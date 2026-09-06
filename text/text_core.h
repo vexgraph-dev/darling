@@ -49,4 +49,8 @@ bool TextCore_rasterLine(const char *utf8, const char *family, float pxHeight, u
 bool TextCore_rasterStyled(const char *utf8, const char *family, float pxHeight, uint32_t argb,
                            const TextStyleDescriptor *style, uint8_t **outRgba, int *outW, int *outH);
 
+// Native clipboard integration
+void TextCore_copyToClipboard(const char *utf8);
+char *TextCore_pasteFromClipboard(void);
+
 #endif
