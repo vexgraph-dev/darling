@@ -125,17 +125,17 @@ int main(void) {
     Container *lbase = &((*l).base.base);
     CHECK("label font end", nearf(Label_getFontSize(l), 20.0f, 1e-4f) && !Anim_isPlaying(lbase));
 
-    // §8 Alpha section over the Panel bg channel.
+    // §8 Alpha section over the Panel bg channel (0xAARRGGBB: high byte).
     Panel *p = Panel_0();
-    Panel_setBackgroundColor(p, 0xFF1122FFu);
+    Panel_setBackgroundColor(p, 0xFF112233u);
     Anim *al = Anim_0();
     Anim_addAlpha(al, 1.0f, 0.0f, ANIM_NORMAL);
     Panel_animate(p, al);
     Anim_tick(0.5);
-    CHECK("alpha mid", (Panel_getBackgroundColor(p) & 0xFFu) == 128u);
+    CHECK("alpha mid", (Panel_getBackgroundColor(p) >> 24) == 128u);
     Anim_tick(0.5);
-    CHECK("alpha end", (Panel_getBackgroundColor(p) & 0xFFu) == 0u
-        && (Panel_getBackgroundColor(p) & 0xFFFFFF00u) == 0xFF112200u);
+    CHECK("alpha end", (Panel_getBackgroundColor(p) >> 24) == 0u
+        && (Panel_getBackgroundColor(p) & 0x00FFFFFFu) == 0x00112233u);
 
     // §9 Loop wraps instead of finishing.
     Anim *lp = Anim_0();

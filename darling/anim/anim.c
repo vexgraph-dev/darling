@@ -5,7 +5,7 @@
 #include <string.h>
 
 #include "annotation/overview.h"
-#include "darling-type.h"
+#include "../../c23/darling-type.h"
 #include "darling/button/button.h"
 #include "darling/label/label.h"
 #include "darling/panel/panel.h"
@@ -537,8 +537,9 @@ static void animApply(AnimBinding *b, float t) {
     if ((*b).kind == ANIM_KIND_PANEL || (*b).kind == ANIM_KIND_LABEL || (*b).kind == ANIM_KIND_BUTTON) {
         Panel *p = (Panel *)c;
         uint32_t col = (*p).color;
+        // darling colors are 0xAARRGGBB: alpha lives in the HIGH byte.
         uint8_t na = (uint8_t)(sampleAlpha(a, (*b).fromAlpha, t) * 255.0f + 0.5f);
-        (*p).color = (col & 0xFFFFFF00u) | na;
+        (*p).color = (col & 0x00FFFFFFu) | ((uint32_t)na << 24);
     }
     if ((*b).kind == ANIM_KIND_LABEL) {
         Label *l = (Label *)c;
@@ -596,7 +597,7 @@ void Anim_play(Container *c, Anim *a, int kind) {
     else if (kind == ANIM_KIND_BUTTON)
         (*b).fromFont = ((const Button *)c)->fontSize;
     if (kind == ANIM_KIND_PANEL || kind == ANIM_KIND_LABEL || kind == ANIM_KIND_BUTTON)
-        (*b).fromAlpha = (float)(((const Panel *)c)->color & 0xFFu) / 255.0f;
+        (*b).fromAlpha = (float)((((const Panel *)c)->color >> 24) & 0xFFu) / 255.0f;
     float dur = Anim_duration(a);
     if (dur <= 0.0f) {
         animApply(b, 0.0f);
