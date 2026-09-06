@@ -214,6 +214,16 @@ void Label_handlePointer(Label *label, int kind, float localX, float localY, voi
 
     if ((*label).highlightable) {
         if (kind == PTR_DOWN) {
+            if (!inside) {
+                if ((*label).selectionStart != -1 || (*label).selectionEnd != -1 || (*label).caretPosition != -1) {
+                    (*label).selectionStart = -1;
+                    (*label).selectionEnd = -1;
+                    (*label).caretPosition = -1;
+                    markRasterDirty(label);
+                    markDirty(label);
+                }
+                return;
+            }
             int32_t idx = Label_charIndexAt(label, localX);
             (*label).caretPosition = idx;
             (*label).selectionStart = idx;
@@ -221,12 +231,16 @@ void Label_handlePointer(Label *label, int kind, float localX, float localY, voi
             markRasterDirty(label);
             markDirty(label);
         } else if (kind == PTR_DRAG) {
+            if ((*label).selectionStart < 0 && (*label).caretPosition < 0)
+                return;
             int32_t idx = Label_charIndexAt(label, localX);
             (*label).selectionEnd = idx;
             (*label).caretPosition = idx;
             markRasterDirty(label);
             markDirty(label);
         } else if (kind == PTR_UP) {
+            if ((*label).selectionStart < 0 && (*label).caretPosition < 0)
+                return;
             if ((*label).selectionStart > (*label).selectionEnd) {
                 int32_t tmp = (*label).selectionStart;
                 (*label).selectionStart = (*label).selectionEnd;
@@ -318,7 +332,12 @@ static bool ensureRaster(Label *lbl) {
         return false;
     if (!rgba || w <= 0 || h <= 0)
         return false;
-    int32_t tex = Texture_loadRaw(rgba, (uint32_t) w, (uint32_t) h);
+    int32_t tex = -1;
+    if ((*lbl).rasterTex >= 0) {
+        tex = Texture_replaceRaw((*lbl).rasterTex, rgba, (uint32_t) w, (uint32_t) h);
+    } else {
+        tex = Texture_loadRaw(rgba, (uint32_t) w, (uint32_t) h);
+    }
     free(rgba);
     if (tex < 0)
         return false;
@@ -799,7 +818,10 @@ void Label_free(Label *label) {
     (*label).text = nullptr;
     (*label).fontFamily = nullptr;
     (*label).cursor = nullptr;
-    (*label).rasterTex = -1;
+    if ((*label).rasterTex >= 0) {
+        Texture_free((*label).rasterTex);
+        (*label).rasterTex = -1;
+    }
     Memory_free(label);
 }
 
@@ -928,4 +950,79 @@ void Label_getHighlightColorRGBA(const Label *label, uint8_t *outR, uint8_t *out
 
 bool Label_isHovered(const Label *label) {
     return label ? (*label).hovered : false;
+}
+
+char *Label_getSelectedText(const Label *label) {
+    if (!label || !(*label).text)
+        return nullptr;
+    int32_t s0 = (*label).selectionStart;
+    int32_t s1 = (*label).selectionEnd;
+    if (s0 < 0 || s1 < 0)
+        return nullptr;
+    if (s0 > s1) {
+        int32_t tmp = s0;
+        s0 = s1;
+        s1 = tmp;
+    }
+    int32_t len = (int32_t) strlen((*label).text);
+    if (s0 < 0)
+        s0 = 0;
+    if (s1 > len)
+        s1 = len;
+    if (s1 <= s0)
+        return nullptr;
+    int32_t subLen = s1 - s0;
+    char *res = (char*) Memory_alloc(TYPE_ARRAY, (size_t) (subLen + 1));
+    if (!res)
+        return nullptr;
+    memcpy(res, (*label).text + s0, (size_t) subLen);
+    res[subLen] = '\0';
+    return res;
+}
+
+void Label_setSelectedText(Label *label, const char *newText) {
+    if (!label || !newText)
+        return;
+    const char *orig = (*label).text ? (*label).text : "";
+    int32_t origLen = (int32_t) strlen(orig);
+    int32_t s0 = (*label).selectionStart;
+    int32_t s1 = (*label).selectionEnd;
+    if (s0 < 0 || s1 < 0) {
+        s0 = (*label).caretPosition;
+        s1 = (*label).caretPosition;
+    }
+    if (s0 < 0) {
+        s0 = origLen;
+        s1 = origLen;
+    }
+    if (s0 > s1) {
+        int32_t tmp = s0;
+        s0 = s1;
+        s1 = tmp;
+    }
+    if (s0 < 0)
+        s0 = 0;
+    if (s1 > origLen)
+        s1 = origLen;
+
+    int32_t insertLen = (int32_t) strlen(newText);
+    int32_t newTotalLen = s0 + insertLen + (origLen - s1);
+    char *buf = (char*) Memory_alloc(TYPE_ARRAY, (size_t) (newTotalLen + 1));
+    if (!buf)
+        return;
+    if (s0 > 0)
+        memcpy(buf, orig, (size_t) s0);
+    if (insertLen > 0)
+        memcpy(buf + s0, newText, (size_t) insertLen);
+    if (origLen - s1 > 0)
+        memcpy(buf + s0 + insertLen, orig + s1, (size_t) (origLen - s1));
+    buf[newTotalLen] = '\0';
+
+    Label_setText(label, buf);
+    Memory_free(buf);
+    (*label).caretPosition = s0 + insertLen;
+    (*label).selectionStart = -1;
+    (*label).selectionEnd = -1;
+    markRasterDirty(label);
+    markDirty(label);
 }

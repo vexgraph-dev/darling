@@ -120,4 +120,8 @@ uint32_t Label_getHighlightColor(const Label *label);
 void Label_getHighlightColorRGBA(const Label *label, uint8_t *outR, uint8_t *outG, uint8_t *outB, uint8_t *outA);
 bool Label_isHovered(const Label *label);
 
+// Selection and clipboard helpers
+char *Label_getSelectedText(const Label *label);
+void Label_setSelectedText(Label *label, const char *newText);
+
 #endif // DARLING_LABEL_H
