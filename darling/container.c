@@ -1,6 +1,6 @@
 #include "darling/container.h"
 
-#include "darling-type.h"
+#include "../c23/darling-type.h"
 #include "nio/mem.h"
 #include "oop/type.h"
 #include "annotation/overview.h"
@@ -25,10 +25,15 @@
  *   uint8_t visible;       // Visibility flag
  *   uint8_t enabled;       // Enabled flag
  *   uint8_t dirty;         // Layout-dirty flag
- *   uint8_t clipping;      // Clip-children flag
+  *   uint8_t clipping;      // Clip-children flag
+  *   float opacity;         // 0..1 alpha multiplier over every paint (default 1)
  *   float baseW, baseH;    // Parent size at last layout (resize-delta reference)
  *   float minW, minH;      // Size constraints (default 0,0)
  *   float maxW, maxH;      // Size constraints (default 0 = unset)
+ *   float marginL, marginT; // Additive margin: final = location + margin
+ *   float marginR, marginB; // Right/bottom edges stored for sibling layout
+ *   float radius;          // Corner radius in parent units (0 = square)
+ *   int radiusMode;        // CORNER_ARC (0) or CORNER_SUPERELLIPSE (1)
  *
  * FUNCTION REGISTRY:
  * ----------------------------------------------------------------------------
@@ -60,7 +65,11 @@
  *   - Container_setZ(c, z)
  *   - Container_setVisible(c, visible)
  *   - Container_setEnabled(c, enabled)
- *   - Container_setClipChildren(c, clip)
+  *   - Container_setClipChildren(c, clip)
+  *   - Container_setOpacity(c, opacity)
+ *   - Container_setMargin(c, l, t, r, b)
+ *   - Container_setRadius(c, r)
+ *   - Container_setRadiusMode(c, mode)
  *
  * Getters:
  *   - Container_getX(c)
@@ -79,8 +88,12 @@
  *   - Container_getZ(c)
  *   - Container_isVisible(c)
  *   - Container_isEnabled(c)
- *   - Container_isClipChildren(c)
+  *   - Container_isClipChildren(c)
+  *   - Container_getOpacity(c)
  *   - Container_isDirty(c)
+ *   - Container_getMargin(c, l, t, r, b)
+ *   - Container_getRadius(c)
+ *   - Container_getRadiusMode(c)
  * ============================================================================
  */
 
@@ -106,8 +119,15 @@ Container *Container_0(void) {
     (*c).enabled = 1;
     (*c).dirty = 0;
     (*c).clipping = 0;
+    (*c).opacity = 1.0f;
     (*c).baseW = 0.0f; // unset -> first resolve captures the reference
     (*c).baseH = 0.0f;
+    (*c).marginL = 0.0f;
+    (*c).marginT = 0.0f;
+    (*c).marginR = 0.0f;
+    (*c).marginB = 0.0f;
+    (*c).radius = 0.0f;
+    (*c).radiusMode = CORNER_ARC;
     return c;
 }
 
@@ -257,6 +277,15 @@ void Container_setVisible(Container *c, bool visible) { if (c) { (*c).visible = 
 void Container_setEnabled(Container *c, bool enabled) { if (c) { (*c).enabled = enabled ? 1 : 0; } }
 void Container_setClipChildren(Container *c, bool clip) { if (c) { (*c).clipping = clip ? 1 : 0; (*c).dirty = 1; } }
 
+void Container_setOpacity(Container *c, float opacity) {
+    if (!c)
+        return;
+    (*c).opacity = opacity < 0.0f ? 0.0f : (opacity > 1.0f ? 1.0f : opacity);
+    (*c).dirty = 1;
+}
+
+float Container_getOpacity(const Container *c) { return c ? (*c).opacity : 1.0f; }
+
 void Container_markDirty(Container *c) {
     if (c)
         (*c).dirty = 1;
@@ -266,6 +295,51 @@ void Container_clearDirty(Container *c) {
     if (c)
         (*c).dirty = 0;
 }
+
+void Container_setMargin(Container *c, float l, float t, float r, float b) {
+    if (!c)
+        return;
+    (*c).marginL = l;
+    (*c).marginT = t;
+    (*c).marginR = r;
+    (*c).marginB = b;
+    (*c).dirty = 1;
+}
+
+void Container_getMargin(const Container *c, float *l, float *t, float *r, float *b) {
+    float ml = c ? (*c).marginL : 0.0f;
+    float mt = c ? (*c).marginT : 0.0f;
+    float mr = c ? (*c).marginR : 0.0f;
+    float mb = c ? (*c).marginB : 0.0f;
+    if (l)
+        *l = ml;
+    if (t)
+        *t = mt;
+    if (r)
+        *r = mr;
+    if (b)
+        *b = mb;
+}
+
+void Container_setRadius(Container *c, float r) {
+    if (!c)
+        return;
+    (*c).radius = r < 0.0f ? 0.0f : r;
+    (*c).dirty = 1;
+}
+
+float Container_getRadius(const Container *c) { return c ? (*c).radius : 0.0f; }
+
+void Container_setRadiusMode(Container *c, int mode) {
+    if (!c)
+        return;
+    if (mode != CORNER_ARC && mode != CORNER_SUPERELLIPSE)
+        return;
+    (*c).radiusMode = mode;
+    (*c).dirty = 1;
+}
+
+int Container_getRadiusMode(const Container *c) { return c ? (*c).radiusMode : CORNER_ARC; }
 
 void Container_resolve(Container *c, float parentX, float parentY,
                        float parentW, float parentH, Vec4 *outRect) {
@@ -320,6 +394,11 @@ void Container_resolve(Container *c, float parentX, float parentY,
 
     float screenX = parentX + px - sx + marginX;
     float screenY = parentY + py - sy + marginY;
+
+    // Phase 1 margin law: final = location + margin, applied at resolve time.
+    // Stored location is never rewritten; zero margins resolve bit-identically.
+    screenX += (*c).marginL;
+    screenY += (*c).marginT;
 
     // Percent overrides placement against the LIVE parent size.
     if (Container_hasPercentX(c))

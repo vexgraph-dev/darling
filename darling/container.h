@@ -36,9 +36,14 @@ typedef struct Container {
     uint8_t enabled;
     uint8_t dirty;
     uint8_t clipping;
+    float opacity;        // 0..1 alpha multiplier over every paint of this node (default 1 = opaque)
     float baseW, baseH;     // parent size at last layout (resize-delta reference)
     float minW, minH;       // size constraints (default 0,0)
     float maxW, maxH;       // size constraints (default 0 = unset)
+    float marginL, marginT; // additive margin: final = location + margin (default 0)
+    float marginR, marginB; // right/bottom edges stored for sibling layout (default 0)
+    float radius;           // corner radius in parent units (default 0 = square)
+    int radiusMode;         // CORNER_ARC (0) or CORNER_SUPERELLIPSE (1)
 } Container;
 
 // Parent anchor: where on the parent the element tracks during resize.
@@ -70,6 +75,10 @@ typedef struct Container {
 #define CONTAINER_PIVOT_REFERENCE_CENTER        4
 
 #define CONTAINER_PERCENT_UNSET (-1.0f)
+
+// Corner radius modes (Phase 1 substrate: margin + radius laws).
+#define CORNER_ARC 0
+#define CORNER_SUPERELLIPSE 1
 
 // Constructor: Container() — defaults at origin, TOP_LEFT everything.
 Container *Container_0(void);
@@ -115,9 +124,22 @@ bool Container_isEnabled(const Container *c);
 void Container_setEnabled(Container *c, bool enabled);
 bool Container_isClipChildren(const Container *c);
 void Container_setClipChildren(Container *c, bool clip);
+// Opacity: per-node alpha multiplier folded over bg, text, and quads (0 = fully
+// transparent but still laid out and hit-tested; 1 = opaque). State edit:
+// dirties, never recaptures base.
+void Container_setOpacity(Container *c, float opacity);
+float Container_getOpacity(const Container *c);
 bool Container_isDirty(const Container *c);
 void Container_markDirty(Container *c);
 void Container_clearDirty(Container *c);
+
+// Margin (additive: final = location + margin, dest-last outs) + corner radius.
+void Container_setMargin(Container *c, float l, float t, float r, float b);
+void Container_getMargin(const Container *c, float *l, float *t, float *r, float *b);
+void Container_setRadius(Container *c, float r);
+float Container_getRadius(const Container *c);
+void Container_setRadiusMode(Container *c, int mode);
+int Container_getRadiusMode(const Container *c);
 
 // Resolve layout into a screen rect [x, y, w, h] — dest LAST.
 void Container_resolve(Container *c, float parentX, float parentY,
