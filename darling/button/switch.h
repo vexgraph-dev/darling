@@ -6,6 +6,7 @@
 
 #include "c23/constructor.h"
 #include "darling/panel/panel.h"
+#include "event/pointer.h"
 #include "oop/type.h"
 
 // darling/button/switch.h — on/off toggle switch shell
@@ -38,6 +39,7 @@ Switch *Switch_1(Panel *parent);
 
 // State flip (real: routes through setOn so the callback fires).
 void Switch_toggle(Switch *s);
+void Switch_handlePointer(Switch *s, int kind, float localX, float localY);
 
 bool Switch_isOn(const Switch *s);
 void Switch_setOn(Switch *s, bool on);

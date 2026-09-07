@@ -6,6 +6,7 @@
 
 #include "c23/constructor.h"
 #include "darling/panel/panel.h"
+#include "event/pointer.h"
 #include "oop/type.h"
 
 #ifndef ID_CHECKBOX
@@ -39,6 +40,7 @@ Checkbox *Checkbox_1(Panel *parent);
 
 // Core.
 void Checkbox_toggle(Checkbox *c);
+void Checkbox_handlePointer(Checkbox *c, int kind, float localX, float localY);
 
 // Setters.
 void Checkbox_setChecked(Checkbox *c, bool checked);

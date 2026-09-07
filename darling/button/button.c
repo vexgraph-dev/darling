@@ -1,8 +1,8 @@
 #include "darling/button/button.h"
 
 #include "darling/panel/panel.h"
-#include "annotation/incomplete.h"
 #include "annotation/overview.h"
+#include "event/pointer.h"
 #include "nio/mem.h"
 #include "oop/type.h"
 
@@ -17,8 +17,7 @@
  * LEVEL: L2 — Behavior (pressable button shell)
  * ============================================================================
  * Panel shell for a pressable button with an owned label, font styling,
- * per-state colors, and a press callback. Hit-testing and press dispatch
- * land in a later pass.
+ * per-state colors, a press callback, and pointer event handling.
  *
  * STRUCT FIELDS (Mirroring darling/button/button.h):
  * ----------------------------------------------------------------------------
@@ -48,6 +47,7 @@
  *
  * Core Functions:
  *   - Button_press(b)
+ *   - Button_handlePointer(b, kind, localX, localY)
  *   - Button_free(b)
  *
  * Setters:
@@ -136,9 +136,60 @@ Button *Button_2(Panel *parent, const char *label) {
 // CORE FUNCTIONS
 // ============================================================================
 
+static void markDirty(Button *b) {
+    if (!b)
+        return;
+    Panel *p = &(*b).base;
+    Container *c = &(*p).base;
+    Container_markDirty(c);
+}
+
 void Button_press(Button *b) {
-    ;;INCOMPLETE // hit-test plus press dispatch deferred
-    (void) b;
+    if (!b || (*b).disabled)
+        return;
+    void (*fn)(void *ctx) = (*b).onPress;
+    void *ctx = (*b).ctx;
+    if (fn)
+        fn(ctx);
+}
+
+void Button_handlePointer(Button *b, int kind, float localX, float localY) {
+    if (!b || (*b).disabled)
+        return;
+    Panel *p = &(*b).base;
+    Container *c = &(*p).base;
+    float w = (*c).w > 0.0f ? (*c).w : 80.0f;
+    float h = (*c).h > 0.0f ? (*c).h : 30.0f;
+    bool inside = (localX >= 0.0f && localX <= w && localY >= 0.0f && localY <= h);
+    if (kind == PTR_ENTER || kind == PTR_HOVER) {
+        if (inside) {
+            (*b).hovered = true;
+            markDirty(b);
+        }
+        return;
+    }
+    if (kind == PTR_LEAVE) {
+        (*b).hovered = false;
+        (*b).pressed = false;
+        markDirty(b);
+        return;
+    }
+    if (kind == PTR_DOWN) {
+        if (inside) {
+            (*b).pressed = true;
+            markDirty(b);
+        }
+        return;
+    }
+    if (kind == PTR_UP) {
+        if ((*b).pressed) {
+            (*b).pressed = false;
+            markDirty(b);
+            if (inside)
+                Button_press(b);
+        }
+        return;
+    }
 }
 
 void Button_free(Button *b) {
@@ -152,14 +203,6 @@ void Button_free(Button *b) {
 
 // SETTERS
 // ============================================================================
-
-static void markDirty(Button *b) {
-    if (!b)
-        return;
-    Panel *p = &(*b).base;
-    Container *c = &(*p).base;
-    Container_markDirty(c);
-}
 
 void Button_setLabel(Button *b, const char *label) {
     if (!b)

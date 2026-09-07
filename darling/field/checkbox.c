@@ -1,6 +1,7 @@
 #include "darling/field/checkbox.h"
 
 #include "annotation/overview.h"
+#include "event/pointer.h"
 #include "nio/mem.h"
 #include "oop/type.h"
 
@@ -30,6 +31,7 @@
  *
  * Core Functions:
  *   - Checkbox_toggle(c)
+ *   - Checkbox_handlePointer(c, kind, localX, localY)
  *
  * Setters:
  *   - Checkbox_setChecked(c, checked)
@@ -80,19 +82,39 @@ Checkbox *Checkbox_1(Panel *parent) {
 
 // CORE FUNCTIONS
 
-void Checkbox_toggle(Checkbox *c) {
-    if (c)
-        Checkbox_setChecked(c, !Checkbox_isChecked(c));
-}
-
-// SETTERS
-
 static void markDirty(Checkbox *c) {
     if (!c)
         return;
-    Panel *b = &(*c).base;
-    Container_markDirty(&(*b).base);
+    Panel *p = &(*c).base;
+    Container *cnt = &(*p).base;
+    Container_markDirty(cnt);
 }
+
+void Checkbox_toggle(Checkbox *c) {
+    if (!c)
+        return;
+    (*c).checked = !(*c).checked;
+    (*c).indeterminate = false;
+    markDirty(c);
+    void (*fn)(void *ctx) = (*c).onChange;
+    void *ctx = (*c).ctx;
+    if (fn)
+        fn(ctx);
+}
+
+void Checkbox_handlePointer(Checkbox *c, int kind, float localX, float localY) {
+    if (!c)
+        return;
+    Panel *p = &(*c).base;
+    Container *cnt = &(*p).base;
+    float w = (*cnt).w > 0.0f ? (*cnt).w : 20.0f;
+    float h = (*cnt).h > 0.0f ? (*cnt).h : 20.0f;
+    bool inside = (localX >= 0.0f && localX <= w && localY >= 0.0f && localY <= h);
+    if (kind == PTR_UP && inside)
+        Checkbox_toggle(c);
+}
+
+// SETTERS
 
 void Checkbox_setChecked(Checkbox *c, bool checked) {
     if (!c)

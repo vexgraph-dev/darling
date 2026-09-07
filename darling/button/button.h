@@ -6,6 +6,7 @@
 
 #include "c23/constructor.h"
 #include "darling/panel/panel.h"
+#include "event/pointer.h"
 #include "font/font.h"
 #include "oop/type.h"
 
@@ -49,8 +50,9 @@ Button *Button_2(Panel *parent, const char *label);
 
 #define Button(...) CONSTRUCTOR_DISPATCH(Button, __VA_ARGS__)
 
-// Press dispatch (shell: hit-test plus dispatch deferred).
+// Press dispatch.
 void Button_press(Button *b);
+void Button_handlePointer(Button *b, int kind, float localX, float localY);
 void Button_free(Button *b);
 
 const char *Button_getLabel(const Button *b);

@@ -2,6 +2,7 @@
 
 #include "darling/panel/panel.h"
 #include "annotation/overview.h"
+#include "event/pointer.h"
 #include "nio/mem.h"
 #include "oop/type.h"
 
@@ -35,6 +36,7 @@
  *
  * Core Functions:
  *   - Switch_toggle(s)
+ *   - Switch_handlePointer(s, kind, localX, localY)
  *
  * Setters:
  *   - Switch_setOn(s, on)
@@ -92,6 +94,18 @@ void Switch_toggle(Switch *s) {
     if (!s)
         return;
     Switch_setOn(s, !(*s).on);
+}
+
+void Switch_handlePointer(Switch *s, int kind, float localX, float localY) {
+    if (!s)
+        return;
+    Panel *p = &(*s).base;
+    Container *cnt = &(*p).base;
+    float w = (*cnt).w > 0.0f ? (*cnt).w : 44.0f;
+    float h = (*cnt).h > 0.0f ? (*cnt).h : 24.0f;
+    bool inside = (localX >= 0.0f && localX <= w && localY >= 0.0f && localY <= h);
+    if (kind == PTR_UP && inside)
+        Switch_setOn(s, !(*s).on);
 }
 
 // SETTERS

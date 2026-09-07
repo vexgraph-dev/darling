@@ -1,7 +1,9 @@
 #include "darling/field/radiogroup.h"
 
-#include "annotation/incomplete.h"
+#include <string.h>
+
 #include "annotation/overview.h"
+#include "event/pointer.h"
 #include "nio/mem.h"
 #include "oop/type.h"
 
@@ -12,6 +14,10 @@
  * LEVEL: L2 — Behavior (single-choice option behavior API)
  * ============================================================================
  * Single-choice option list holding owned label strings and a select hook.
+ * Option storage allocates copies on add and frees them on clear/free.
+ * RadioGroup_select enforces mutual exclusion and fires onSelect(ctx).
+ * RadioGroup_handlePointer divides panel bounds across options by orientation
+ * and selects the clicked option on PTR_UP.
  *
  * STRUCT FIELDS (Mirroring darling/field/radiogroup.h):
  * ----------------------------------------------------------------------------
@@ -31,6 +37,8 @@
  * Core Functions:
  *   - RadioGroup_addOption(g, option)
  *   - RadioGroup_clear(g)
+ *   - RadioGroup_select(g, index)
+ *   - RadioGroup_handlePointer(g, kind, localX, localY)
  *
  * Setters:
  *   - RadioGroup_setSelected(g, index)
@@ -62,7 +70,7 @@ RadioGroup *RadioGroup_0(void) {
     }
     (*g).base = (*base);
     Memory_free(base);
-    (*g).options = nullptr;
+    (*g).options = List_1(TYPE_POINTER);
     (*g).selected = -1;
     (*g).orientation = RADIOGROUP_VERTICAL;
     (*g).onSelect = nullptr;
@@ -77,21 +85,6 @@ RadioGroup *RadioGroup_1(Panel *parent) {
     return g;
 }
 
-// CORE FUNCTIONS
-
-void RadioGroup_addOption(RadioGroup *g, const char *option) {
-    ;;INCOMPLETE // owned-string append lands with the layout pass
-    (void)g;
-    (void)option;
-}
-
-void RadioGroup_clear(RadioGroup *g) {
-    ;;INCOMPLETE // owned-string drain lands with the layout pass
-    (void)g;
-}
-
-// SETTERS
-
 static void markDirty(RadioGroup *g) {
     if (!g)
         return;
@@ -99,11 +92,85 @@ static void markDirty(RadioGroup *g) {
     Container_markDirty(&(*b).base);
 }
 
-void RadioGroup_setSelected(RadioGroup *g, int32_t index) {
-    if (!g)
+// CORE FUNCTIONS
+
+void RadioGroup_addOption(RadioGroup *g, const char *option) {
+    if (!g || !option || !(*g).options)
+        return;
+    size_t len = strlen(option) + 1;
+    char *copy = (char*) Memory_alloc(TYPE_ARRAY, len);
+    if (copy) {
+        strcpy(copy, option);
+        List_add((*g).options, (uint64_t) (uintptr_t) copy);
+    }
+    markDirty(g);
+}
+
+void RadioGroup_clear(RadioGroup *g) {
+    if (!g || !(*g).options)
+        return;
+    List *opts = (*g).options;
+    size_t count = List_size(opts);
+    for (size_t i = 0; i < count; i++) {
+        char *item = (char*) (uintptr_t) List_get(opts, i);
+        if (item)
+            Memory_free(item);
+    }
+    List_free(opts);
+    (*g).options = List_1(TYPE_POINTER);
+    (*g).selected = -1;
+    markDirty(g);
+}
+
+void RadioGroup_select(RadioGroup *g, int32_t index) {
+    if (!g || index == (*g).selected)
+        return;
+    int32_t count = RadioGroup_optionCount(g);
+    if (index < 0 || index >= count)
         return;
     (*g).selected = index;
     markDirty(g);
+    void (*fn)(void *ctx) = (*g).onSelect;
+    void *ctx = (*g).ctx;
+    if (fn)
+        fn(ctx);
+}
+
+void RadioGroup_handlePointer(RadioGroup *g, int kind, float localX, float localY) {
+    if (!g)
+        return;
+    Panel *p = &(*g).base;
+    Container *cnt = &(*p).base;
+    float w = (*cnt).w;
+    float h = (*cnt).h;
+    if (w <= 0.0f)
+        w = 120.0f;
+    if (h <= 0.0f)
+        h = 60.0f;
+    bool inside = (localX >= 0.0f && localX <= w && localY >= 0.0f && localY <= h);
+    if (kind == PTR_UP && inside) {
+        int32_t count = RadioGroup_optionCount(g);
+        if (count > 0) {
+            int32_t clickedIndex = 0;
+            if ((*g).orientation == 1) {
+                float colW = w / (float) count;
+                clickedIndex = (int32_t) (localX / colW);
+            } else {
+                float rowH = h / (float) count;
+                clickedIndex = (int32_t) (localY / rowH);
+            }
+            if (clickedIndex >= count)
+                clickedIndex = count - 1;
+            if (clickedIndex >= 0 && clickedIndex < count)
+                RadioGroup_select(g, clickedIndex);
+        }
+    }
+}
+
+// SETTERS
+
+void RadioGroup_setSelected(RadioGroup *g, int32_t index) {
+    RadioGroup_select(g, index);
 }
 
 void RadioGroup_setOrientation(RadioGroup *g, int32_t orientation) {

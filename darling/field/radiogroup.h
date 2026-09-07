@@ -7,6 +7,7 @@
 
 #include "c23/constructor.h"
 #include "darling/panel/panel.h"
+#include "event/pointer.h"
 #include "oop/type.h"
 #include "struct/list.h"
 
@@ -15,6 +16,9 @@
 #endif
 #ifndef TYPE_RADIOGROUP_SINGLETON
 #define TYPE_RADIOGROUP_SINGLETON (FORM_SINGLETON | ID_RADIOGROUP)
+#endif
+#ifndef TYPE_POINTER
+#define TYPE_POINTER 0u
 #endif
 
 #define RADIOGROUP_VERTICAL    0
@@ -41,9 +45,13 @@ RadioGroup *RadioGroup_1(Panel *parent);
 
 #define RadioGroup(...) CONSTRUCTOR_DISPATCH(RadioGroup, __VA_ARGS__)
 
-// Core (shell stubs; owned-string storage lands with the layout pass).
+// Core.
 void RadioGroup_addOption(RadioGroup *g, const char *option);
 void RadioGroup_clear(RadioGroup *g);
+void RadioGroup_select(RadioGroup *g, int32_t index);
+
+// Live events (Pkg 2).
+void RadioGroup_handlePointer(RadioGroup *g, int kind, float localX, float localY);
 
 // Setters.
 void RadioGroup_setSelected(RadioGroup *g, int32_t index);
