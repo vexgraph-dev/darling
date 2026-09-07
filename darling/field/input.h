@@ -7,6 +7,7 @@
 
 #include "c23/constructor.h"
 #include "darling/panel/panel.h"
+#include "event/keyevent.h"
 #include "font/font.h"
 
 // Single-line text input: Panel layout plus an owned bounded buffer.
@@ -46,6 +47,7 @@ typedef struct Input {
     char *placeholder;
     bool password;
     bool readonly;
+    bool focused;       // Focus-request flag (DOWN sets, dispatch consumes later)
     int32_t cursor;
     Font *font;
     // --- Caret part (field->caret->verb; views only, never pierce) ---
@@ -71,9 +73,14 @@ Input *Input_2(Panel *parent, size_t cap);
 
 #define Input(...) CONSTRUCTOR_DISPATCH(Input, __VA_ARGS__)
 
-// Core editing (stubs: buffer surgery lands with the caret walker).
+// Core editing (live: byte-wise UTF-8 surgery at the cursor, cap-truncated
+// like setText, caret re-measured, blink restarted, onChange fired).
 void Input_insertChar(Input *inp, char c);
 void Input_eraseChar(Input *inp);
+// Live events (Pkg 4): pointer DOWN requests focus + places the caret,
+// pressed keys type/erase/move/submit. Null-safe no-ops on null self.
+void Input_handlePointer(Input *self, int kind, float localX, float localY);
+void Input_handleKey(Input *self, const UIKeyEvent *ev);
 // Move to an index: clamps, restarts blink, re-measures the caret target,
 // then blits (BLINK/SOLID) or glides (GLIDE) — the Word-inspired goTo.
 void Input_goTo(Input *inp, int32_t index);
@@ -85,6 +92,7 @@ void Input_setCap(Input *inp, size_t cap);
 void Input_setPlaceholder(Input *inp, const char *placeholder);
 void Input_setPassword(Input *inp, bool password);
 void Input_setReadonly(Input *inp, bool readonly);
+void Input_setFocused(Input *inp, bool focused);
 void Input_setCursor(Input *inp, int32_t cursor);
 void Input_setFont(Input *inp, Font *font);
 void Input_setOnChange(Input *inp, Input_ChangeFn fn);
@@ -107,6 +115,7 @@ size_t Input_getCap(const Input *inp);
 const char *Input_getPlaceholder(const Input *inp);
 bool Input_isPassword(const Input *inp);
 bool Input_isReadonly(const Input *inp);
+bool Input_isFocused(const Input *inp);
 int32_t Input_getCursor(const Input *inp);
 Font *Input_getFont(const Input *inp);
 Input_ChangeFn Input_getOnChange(const Input *inp);

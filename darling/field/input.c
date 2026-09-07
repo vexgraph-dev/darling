@@ -5,6 +5,9 @@
 
 #include "annotation/incomplete.h"
 #include "darling/anim/anim.h"
+#include "event/keyevent.h"
+#include "event/pointer.h"
+#include "input/key.h"
 #include "nio/mem.h"
 #include "oop/type.h"
 #include "annotation/overview.h"
@@ -37,6 +40,7 @@
  *   char *placeholder;       // Owned hint string shown when empty
  *   bool password;           // Mask glyphs at render time
  *   bool readonly;           // Reject edits, still selectable
+ *   bool focused;            // Focus-request flag (DOWN sets, dispatch consumes later)
  *   int32_t cursor;          // Caret offset into text
  *   Font *font;              // Optional SDF font descriptor (borrowed)
  *   --- Caret part (views only) ---
@@ -65,6 +69,8 @@
  * Core Functions:
  *   - Input_insertChar(inp, c)
  *   - Input_eraseChar(inp)
+ *   - Input_handlePointer(self, kind, localX, localY)
+ *   - Input_handleKey(self, ev)
  *
  * Setters:
  *   - Input_goTo(inp, index)
@@ -73,6 +79,7 @@
  *   - Input_setPlaceholder(inp, placeholder)
  *   - Input_setPassword(inp, password)
  *   - Input_setReadonly(inp, readonly)
+ *   - Input_setFocused(inp, focused)
  *   - Input_setCursor(inp, cursor)
  *   - Input_setFont(inp, font)
  *   - Input_setOnChange(inp, fn)
@@ -97,6 +104,7 @@
  *   - Input_getPlaceholder(inp)
  *   - Input_isPassword(inp)
  *   - Input_isReadonly(inp)
+ *   - Input_isFocused(inp)
  *   - Input_getCursor(inp)
  *   - Input_getFont(inp)
  *   - Input_getOnChange(inp)
@@ -138,6 +146,7 @@ Input *Input_0(void) {
     (*inp).placeholder = nullptr;
     (*inp).password = false;
     (*inp).readonly = false;
+    (*inp).focused = false;
     (*inp).cursor = 0;
     (*inp).font = nullptr;
     (*inp).caretMode = INPUT_CARET_BLINK;
@@ -173,15 +182,116 @@ Input *Input_2(Panel *parent, size_t cap) {
 // CORE FUNCTIONS
 // ============================================================================
 
+static int32_t clampCursor(size_t len, int32_t cursor);
+static void markDirty(Input *inp);
+
 void Input_insertChar(Input *inp, char c) {
-    ;;INCOMPLETE // caret-aware buffer surgery lands with the caret walker
-    (void)inp;
-    (void)c;
+    if (!inp) return;
+    if ((*inp).readonly) return; // reject edits, still selectable
+    char *cur = (*inp).text;
+    size_t len = cur ? strlen(cur) : 0;
+    if (len >= (*inp).cap) return; // cap-truncate like setText: byte does not fit
+    int32_t at = clampCursor(len, (*inp).cursor);
+    size_t nlen = len + 1;
+    char *buf = (char*) Memory_alloc(TYPE_ARRAY, nlen + 1);
+    if (!buf) return;
+    if (cur && at > 0) memcpy(buf, cur, (size_t)at);
+    buf[at] = c;
+    if (cur && (size_t)at < len) memcpy(buf + at + 1, cur + at, len - (size_t)at);
+    buf[nlen] = '\0';
+    if (cur) Memory_free(cur);
+    (*inp).text = buf;
+    (*inp).cursor = at + 1;
+    if ((*inp).measurer)
+        Input_caret_setTarget(inp, (*inp).measurer((*inp).measureCtx, (*inp).cursor));
+    (*inp).caretClock = 0.0; // typing restarts the blink phase shown
+    (*inp).caretShown = true;
+    markDirty(inp);
+    Input_ChangeFn fn = (*inp).onChange;
+    void *ctx = (*inp).ctx;
+    if (fn) fn(ctx);
 }
 
 void Input_eraseChar(Input *inp) {
-    ;;INCOMPLETE // caret-aware buffer surgery lands with the caret walker
-    (void)inp;
+    if (!inp) return;
+    if ((*inp).readonly) return; // reject edits, still selectable
+    char *cur = (*inp).text;
+    size_t len = cur ? strlen(cur) : 0;
+    int32_t at = clampCursor(len, (*inp).cursor);
+    if (at <= 0) return; // nothing before the caret: no change, no fire
+    size_t nlen = len - 1;
+    char *buf = (char*) Memory_alloc(TYPE_ARRAY, nlen + 1);
+    if (!buf) return;
+    if (at > 1) memcpy(buf, cur, (size_t)(at - 1));
+    if ((size_t)at < len) memcpy(buf + at - 1, cur + at, len - (size_t)at);
+    buf[nlen] = '\0';
+    Memory_free(cur);
+    (*inp).text = buf;
+    (*inp).cursor = at - 1;
+    if ((*inp).measurer)
+        Input_caret_setTarget(inp, (*inp).measurer((*inp).measureCtx, (*inp).cursor));
+    (*inp).caretClock = 0.0; // typing restarts the blink phase shown
+    (*inp).caretShown = true;
+    markDirty(inp);
+    Input_ChangeFn fn = (*inp).onChange;
+    void *ctx = (*inp).ctx;
+    if (fn) fn(ctx);
+}
+
+// DOWN requests focus and places the caret at the click (best-effort index
+// via the measurer hook, else the end); all other kinds are minimal no-ops.
+void Input_handlePointer(Input *self, int kind, float localX, float localY) {
+    if (!self) return;
+    if (kind != PTR_DOWN) return;
+    (void)localY; // single-line: the x run places the caret
+    (*self).focused = true;
+    char *cur = (*self).text;
+    size_t len = cur ? strlen(cur) : 0;
+    if ((*self).measurer) {
+        int32_t best = 0;
+        float bestD = fabsf((*self).measurer((*self).measureCtx, 0) - localX);
+        for (int32_t i = 1; (size_t)i <= len; i++) {
+            float d = fabsf((*self).measurer((*self).measureCtx, i) - localX);
+            if (d < bestD) {
+                bestD = d;
+                best = i;
+            }
+        }
+        Input_goTo(self, best);
+        return;
+    }
+    int32_t end = len > (size_t)INT32_MAX ? INT32_MAX : (int32_t)len;
+    Input_goTo(self, end);
+}
+
+// Pressed keys only: printable codepoints insert, backspace erases,
+// left/right step the caret (goTo clamps), enter submits. Readonly rejects
+// the edits (insert/erase gate themselves); caret moves + submit still run.
+void Input_handleKey(Input *self, const UIKeyEvent *ev) {
+    if (!self) return;
+    if (!ev) return;
+    if (!UIKeyEvent_isPressed(ev)) return;
+    int32_t code = UIKeyEvent_getKeyCode(ev);
+    int32_t ch = UIKeyEvent_getCh(ev);
+    if (code == KEY_BACKSPACE || ch == 8) {
+        Input_eraseChar(self);
+        return;
+    }
+    if (code == KEY_ENTER || ch == '\r' || ch == '\n') {
+        Input_SubmitFn fn = (*self).onSubmit;
+        void *ctx = (*self).ctx;
+        if (fn) fn(ctx);
+        return;
+    }
+    if (code == KEY_LEFT) {
+        Input_goTo(self, (*self).cursor - 1);
+        return;
+    }
+    if (code == KEY_RIGHT) {
+        Input_goTo(self, (*self).cursor + 1);
+        return;
+    }
+    if (ch >= 32) Input_insertChar(self, (char)ch);
 }
 
 // ============================================================================
@@ -274,6 +384,13 @@ void Input_setReadonly(Input *inp, bool readonly) {
     if (!inp)
         return;
     (*inp).readonly = readonly;
+    markDirty(inp);
+}
+
+void Input_setFocused(Input *inp, bool focused) {
+    if (!inp)
+        return;
+    (*inp).focused = focused;
     markDirty(inp);
 }
 
@@ -468,6 +585,10 @@ bool Input_isPassword(const Input *inp) {
 
 bool Input_isReadonly(const Input *inp) {
     return inp ? (*inp).readonly : false;
+}
+
+bool Input_isFocused(const Input *inp) {
+    return inp ? (*inp).focused : false;
 }
 
 int32_t Input_getCursor(const Input *inp) {
