@@ -429,6 +429,11 @@ void Darling_renderFrame(void *cmdBuffer, int drawW, int drawH, void *userdata) 
 void Darling_initCompositor(Window *window) {
     if (!window) return;
 
+    if (!Vk_ready()) {
+        Vk_init(window);
+    }
+    Window_forceNativeContainerOnRoot(window, true);
+
     VkInstance inst = Vk_getInstance();
     PFN_vkGetInstanceProcAddr gpa = Vk_getGpa();
     VkPhysicalDevice phys = Vk_getPhys();
