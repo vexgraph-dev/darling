@@ -106,6 +106,7 @@ add_library(darling STATIC
 )
 
 target_include_directories(darling PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_definitions(darling PUBLIC $<$<CONFIG:Debug>:DEBUG_BORROW_CHECK=1>)
 target_compile_options(darling PRIVATE -Wall -Wextra -Werror -mcpu=native)
 
 find_package(Vulkan QUIET)

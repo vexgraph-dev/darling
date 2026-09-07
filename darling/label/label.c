@@ -35,6 +35,8 @@
  *   int rasterH;             // Pixel height of CoreText raster
  *   float rasterBacking;     // Retina scale factor at rasterization time
  *   bool rasterDirty;        // True if string or font changed and needs re-raster
+ *   bool ownsText;           // True if text was copied and owned by label
+ *   bool ownsFontFamily;     // True if fontFamily was copied and owned by label
  *   bool highlightable;      // Enables text selection & caret cursor
  *   bool mnemonic;           // Parse '&' key accelerator prefix
  *   char mnemonicChar;       // Parsed accelerator character ('\0' if none)
@@ -68,8 +70,10 @@
  *
  * Setters:
  *   - Label_setText(label, text)
+ *   - Label_setTextBorrowed(label, text)
  *   - Label_setFont(label, font)
  *   - Label_setFontFamily(label, family)
+ *   - Label_setFontFamilyBorrowed(label, family)
  *   - Label_setFontSize(label, size)
  *   - Label_setTextColor(label, color)
  *   - Label_setSmoothness(label, smoothness)
@@ -524,8 +528,10 @@ Label *Label_0(void) {
     (*lbl).base = *p;
     Memory_free(p);
     (*lbl).text = NULL;
+    (*lbl).ownsText = false;
     (*lbl).font = NULL;
     (*lbl).fontFamily = nullptr;
+    (*lbl).ownsFontFamily = false;
     (*lbl).fontSize = 12.0f;
     (*lbl).textColor = 0xFFFFFFFF;
     (*lbl).smoothness = 0.5f;
@@ -554,8 +560,10 @@ Label *Label_0(void) {
         const char *defFamily = "Helvetica";
         size_t defLen = strlen(defFamily) + 1;
         (*lbl).fontFamily = (char*) Memory_alloc(TYPE_ARRAY, defLen);
-        if ((*lbl).fontFamily)
+        if ((*lbl).fontFamily) {
             strcpy((*lbl).fontFamily, defFamily);
+            (*lbl).ownsFontFamily = true;
+        }
     }
     Panel_setRenderHandler(&(*lbl).base, Label_renderFn);
     return lbl;
@@ -590,15 +598,36 @@ Label *Label_2(Panel *parent, const char *text) {
 void Label_setText(Label *label, const char *text) {
     if (!label)
         return;
-    if ((*label).text)
+    if ((*label).text && (*label).ownsText)
         Memory_free((*label).text);
     if (text) {
-        (*label).text = (char*) Memory_alloc(TYPE_ARRAY, strlen(text) + 1);
+        size_t len = strlen(text) + 1;
+        (*label).text = (char*) Memory_alloc(TYPE_ARRAY, len);
         if ((*label).text)
-            strcpy((*label).text, text);
+            memcpy((*label).text, text, len);
+        (*label).ownsText = true;
     } else {
         (*label).text = NULL;
+        (*label).ownsText = false;
     }
+    markRasterDirty(label);
+    markDirty(label);
+}
+
+void Label_setTextBorrowed(Label *label, const char *text) {
+    if (!label)
+        return;
+#if defined(DEBUG_BORROW_CHECK)
+    if (Transient_contains(text) && !Transient_contains(label)) {
+        fprintf(stderr, "[LIFETIME ESCAPE] Label_setTextBorrowed: transient string %p cannot be borrowed by non-transient label %p\n",
+                text, (void*) label);
+        abort();
+    }
+#endif
+    if ((*label).text && (*label).ownsText)
+        Memory_free((*label).text);
+    (*label).text = (char*) text;
+    (*label).ownsText = false;
     markRasterDirty(label);
     markDirty(label);
 }
@@ -614,15 +643,36 @@ void Label_setFont(Label *label, Font *font) {
 void Label_setFontFamily(Label *label, const char *family) {
     if (!label)
         return;
-    if ((*label).fontFamily)
+    if ((*label).fontFamily && (*label).ownsFontFamily)
         Memory_free((*label).fontFamily);
     (*label).fontFamily = nullptr;
+    (*label).ownsFontFamily = false;
     if (family) {
         size_t len = strlen(family) + 1;
         (*label).fontFamily = (char*) Memory_alloc(TYPE_ARRAY, len);
-        if ((*label).fontFamily)
-            strcpy((*label).fontFamily, family);
+        if ((*label).fontFamily) {
+            memcpy((*label).fontFamily, family, len);
+            (*label).ownsFontFamily = true;
+        }
     }
+    markRasterDirty(label);
+    markDirty(label);
+}
+
+void Label_setFontFamilyBorrowed(Label *label, const char *family) {
+    if (!label)
+        return;
+#if defined(DEBUG_BORROW_CHECK)
+    if (Transient_contains(family) && !Transient_contains(label)) {
+        fprintf(stderr, "[LIFETIME ESCAPE] Label_setFontFamilyBorrowed: transient family %p cannot be borrowed by non-transient label %p\n",
+                family, (void*) label);
+        abort();
+    }
+#endif
+    if ((*label).fontFamily && (*label).ownsFontFamily)
+        Memory_free((*label).fontFamily);
+    (*label).fontFamily = (char*) family;
+    (*label).ownsFontFamily = false;
     markRasterDirty(label);
     markDirty(label);
 }
@@ -810,13 +860,15 @@ void Label_setHovered(Label *label, bool hovered) {
 void Label_free(Label *label) {
     if (!label)
         return;
-    if ((*label).text)
+    if ((*label).text && (*label).ownsText)
         Memory_free((*label).text);
-    if ((*label).fontFamily)
+    if ((*label).fontFamily && (*label).ownsFontFamily)
         Memory_free((*label).fontFamily);
     Cursor_free((*label).cursor);
     (*label).text = nullptr;
     (*label).fontFamily = nullptr;
+    (*label).ownsText = false;
+    (*label).ownsFontFamily = false;
     (*label).cursor = nullptr;
     if ((*label).rasterTex >= 0) {
         Texture_free((*label).rasterTex);

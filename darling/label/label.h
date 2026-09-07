@@ -26,6 +26,8 @@ typedef struct Label {
     int rasterH;
     float rasterBacking;
     bool rasterDirty;
+    bool ownsText;            // true if text was copied and owned by label
+    bool ownsFontFamily;      // true if fontFamily was copied and owned by label
 
     // Typography & text styling
     bool highlightable;       // enables text selection & caret cursor
@@ -56,8 +58,10 @@ Label *Label_1_parent(Panel *parent);
 #define Label(...) CONSTRUCTOR_DISPATCH(Label, __VA_ARGS__)
 
 void Label_setText(Label *label, const char *text);
+void Label_setTextBorrowed(Label *label, const char *text);
 void Label_setFont(Label *label, Font *font);
 void Label_setFontFamily(Label *label, const char *family);
+void Label_setFontFamilyBorrowed(Label *label, const char *family);
 void Label_setFontSize(Label *label, float size);
 void Label_setTextColor(Label *label, uint32_t color);
 void Label_setSmoothness(Label *label, float smoothness);
