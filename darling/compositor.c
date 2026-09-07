@@ -64,6 +64,7 @@ extern bool VkView_refreshAll(VkInstance instance, PFN_vkGetInstanceProcAddr gpa
 extern bool VkSceneCanvas_initModule(VkInstance instance, PFN_vkGetInstanceProcAddr gpa, VkPhysicalDevice phys, VkDevice device);
 extern bool VkIOSurface_initModule(VkInstance instance, PFN_vkGetInstanceProcAddr gpa, VkPhysicalDevice phys, VkDevice device);
 extern bool Texture_initModule(void *instance, void *gpa, void *phys, void *device, void *queue, uint32_t queueFamily);
+extern void Texture_shutdown(void);
 extern void VkView_shutdown(void);
 extern void VkSceneCanvas_shutdownModule(void);
 
@@ -514,6 +515,7 @@ void Darling_shutdownCompositor(void) {
         }
     }
 
+    Texture_shutdown();
     SdfGpu_shutdown();
     VkView_shutdown();
     VkSceneCanvas_shutdownModule();
