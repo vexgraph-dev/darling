@@ -197,3 +197,77 @@ if(NOT TARGET label_test)
     target_link_libraries(label_test PRIVATE darling)
 endif()
 
+# Button artifact (click §1): headless click, hover, down/up bounds suite.
+if(NOT TARGET button_test)
+    add_executable(button_test
+        darling/button/button_test.c
+    )
+    target_link_libraries(button_test PRIVATE darling)
+endif()
+
+# Checkbox artifact (click §2): headless toggle, indeterminate, inside/outside bounds suite.
+if(NOT TARGET checkbox_test)
+    add_executable(checkbox_test
+        darling/field/checkbox_test.c
+    )
+    target_link_libraries(checkbox_test PRIVATE darling)
+endif()
+
+# Switch artifact (click §3): headless toggle, state flip, inside/outside bounds suite.
+if(NOT TARGET switch_test)
+    add_executable(switch_test
+        darling/button/switch_test.c
+    )
+    target_link_libraries(switch_test PRIVATE darling)
+endif()
+
+# Slider artifact (drag §1): headless drag, step snap, range clamping suite.
+if(NOT TARGET slider_test)
+    add_executable(slider_test
+        darling/field/slider_test.c
+    )
+    target_link_libraries(slider_test PRIVATE darling)
+endif()
+
+# Knob artifact (drag §2): headless rotary scrub, normalized mapping, callback suite.
+if(NOT TARGET knob_test)
+    add_executable(knob_test
+        darling/field/knob_test.c
+    )
+    target_link_libraries(knob_test PRIVATE darling)
+endif()
+
+# ScrollBar artifact (drag §3): headless drag, clickAt fraction mapping suite.
+if(NOT TARGET scrollbar_test)
+    add_executable(scrollbar_test
+        darling/field/scrollbar_test.c
+    )
+    target_link_libraries(scrollbar_test PRIVATE darling)
+endif()
+
+# RadioGroup artifact (click §4): headless options, mutual exclusion, pointer click suite.
+if(NOT TARGET radiogroup_test)
+    add_executable(radiogroup_test
+        darling/field/radiogroup_test.c
+    )
+    target_link_libraries(radiogroup_test PRIVATE darling)
+endif()
+
+# Input artifact (text §1): headless text insertion, deletion, caret motion, key event suite.
+if(NOT TARGET darling_input_test)
+    add_executable(darling_input_test
+        darling/field/input_test.c
+    )
+    target_link_libraries(darling_input_test PRIVATE darling)
+endif()
+
+# Textarea artifact (text §2): headless multiline buffer, caret, pointer, key event suite.
+if(NOT TARGET textarea_test)
+    add_executable(textarea_test
+        darling/field/textarea_test.c
+    )
+    target_link_libraries(textarea_test PRIVATE darling)
+endif()
+
+
+
