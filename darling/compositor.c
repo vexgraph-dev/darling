@@ -207,7 +207,7 @@ static void renderNativeContent(Window *window, Panel *contentPanel, int winW, i
     if (!window || !contentPanel) return;
 
     Panel *scenePanel = Window_getScenePanel(window);
-    Window_resizePanelIOSurface(window, contentPanel, winW, winH);
+    Window_attachPanelIOSurface(window, contentPanel, winW, winH);
 
     size_t childCount = Panel_childCount(contentPanel);
     if (childCount == 0) return;
@@ -307,10 +307,8 @@ void Darling_preFrame(Window *window, int drawW, int drawH, void *userdata) {
 
     if (contentPanel) {
         Container_setSize(&(*contentPanel).base, (float)winW, (float)winH);
-        if (Window_isNativeContainerOnRoot(window)) {
-            renderNativeContent(window, contentPanel, winW, winH, kx, ky);
-            Window_compositeIOSurfaceChildren(window, contentPanel);
-        }
+        renderNativeContent(window, contentPanel, winW, winH, kx, ky);
+        Window_compositeIOSurfaceChildren(window, contentPanel);
     }
 
     if (scenePanel) {
@@ -347,7 +345,6 @@ void Darling_renderFrame(void *cmdBuffer, int drawW, int drawH, void *userdata) 
     float ky = (float)drawH / (float)winH;
 
     Panel *root = Window_getContainer(window);
-    bool nativeContent = Window_isNativeContainerOnRoot(window);
 
     if (root) {
         size_t childCount = Panel_childCount(root);
@@ -359,11 +356,9 @@ void Darling_renderFrame(void *cmdBuffer, int drawW, int drawH, void *userdata) 
             Container_resolve(&(*child).base, 0.0f, 0.0f, (float)winW, (float)winH, &rect);
             if (rect.z <= 0.0f || rect.w <= 0.0f) continue;
 
-            if (nativeContent) {
-                uint64_t cType = Memory_type(child);
-                if (cType != TYPE_SCENE3D_SINGLETON && cType != TYPE_SCENE2D_SINGLETON && cType != TYPE_SCENE_SINGLETON) {
-                    continue;
-                }
+            uint64_t cType = Memory_type(child);
+            if (cType != TYPE_SCENE3D_SINGLETON && cType != TYPE_SCENE2D_SINGLETON && cType != TYPE_SCENE_SINGLETON) {
+                continue;
             }
 
             float px = rect.x * kx;
@@ -432,7 +427,6 @@ void Darling_initCompositor(Window *window) {
     if (!Vk_ready()) {
         Vk_init(window);
     }
-    Window_forceNativeContainerOnRoot(window, true);
 
     VkInstance inst = Vk_getInstance();
     PFN_vkGetInstanceProcAddr gpa = Vk_getGpa();
