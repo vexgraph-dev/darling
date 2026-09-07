@@ -1,7 +1,9 @@
 #include "darling/field/slider.h"
 
-#include "annotation/incomplete.h"
+#include <math.h>
+
 #include "annotation/overview.h"
+#include "event/pointer.h"
 #include "nio/mem.h"
 #include "oop/type.h"
 
@@ -37,6 +39,7 @@
  *
  * Core Functions:
  *   - Slider_setRange(s, min, max)
+ *   - Slider_handlePointer(s, kind, localX, localY)
  *
  * Setters:
  *   - Slider_setMin(s, min)
@@ -105,21 +108,48 @@ Slider *Slider_1(Panel *parent) {
 
 // CORE FUNCTIONS
 
-void Slider_setRange(Slider *s, float min, float max) {
-    ;;INCOMPLETE // min/max/step snap lands with the drag handler
-    (void)s;
-    (void)min;
-    (void)max;
-}
-
-// SETTERS
-
 static void markDirty(Slider *s) {
-    if (!s)
-        return;
+    if (!s) return;
     Panel *b = &(*s).base;
     Container_markDirty(&(*b).base);
 }
+
+void Slider_setRange(Slider *s, float min, float max) {
+    if (!s) return;
+    (*s).min = min;
+    (*s).max = max;
+    if ((*s).value < min) (*s).value = min;
+    if ((*s).value > max) (*s).value = max;
+    markDirty(s);
+}
+
+void Slider_handlePointer(Slider *s, int kind, float localX, float localY) {
+    if (!s) return;
+    Panel *p = &(*s).base;
+    Container *cnt = &(*p).base;
+    float w = (*cnt).w;
+    float h = (*cnt).h;
+    if (w <= 0.0f) w = 100.0f;
+    if (h <= 0.0f) h = 20.0f;
+    if (kind != PTR_DOWN && kind != PTR_DRAG) return;
+    float ratio = (*s).vertical ? (localY / h) : (localX / w);
+    if (ratio < 0.0f) ratio = 0.0f;
+    if (ratio > 1.0f) ratio = 1.0f;
+    float val = (*s).min + ratio * ((*s).max - (*s).min);
+    if ((*s).step > 0.0f)
+        val = (*s).min + roundf((val - (*s).min) / (*s).step) * (*s).step;
+    if (val < (*s).min) val = (*s).min;
+    if (val > (*s).max) val = (*s).max;
+    if (val != (*s).value) {
+        (*s).value = val;
+        markDirty(s);
+        void (*fn)(void *ctx) = (*s).onChange;
+        void *ctx = (*s).ctx;
+        if (fn) fn(ctx);
+    }
+}
+
+// SETTERS
 
 static float clampValue(const Slider *s, float value) {
     float lo = (*s).min;

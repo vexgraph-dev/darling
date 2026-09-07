@@ -6,6 +6,7 @@
 
 #include "c23/constructor.h"
 #include "darling/panel/panel.h"
+#include "event/pointer.h"
 #include "oop/type.h"
 
 #ifndef ID_SCROLLBAR
@@ -41,6 +42,7 @@ ScrollBar *ScrollBar_1(int mode);
 void ScrollBar_dragBy(ScrollBar *s, float deltaPx, float trackLen);
 void ScrollBar_clickAt(ScrollBar *s, float fraction);
 void ScrollBar_setRange(ScrollBar *s, float min, float max);
+void ScrollBar_handlePointer(ScrollBar *s, int kind, float localX, float localY);
 
 // Setters.
 void ScrollBar_setMode(ScrollBar *s, int mode);

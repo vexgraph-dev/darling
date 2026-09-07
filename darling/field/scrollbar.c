@@ -1,6 +1,7 @@
 #include "darling/field/scrollbar.h"
 
 #include "annotation/overview.h"
+#include "event/pointer.h"
 #include "nio/mem.h"
 #include "oop/type.h"
 
@@ -35,6 +36,7 @@
  *   - ScrollBar_dragBy(s, deltaPx, trackLen)
  *   - ScrollBar_clickAt(s, fraction)
  *   - ScrollBar_setRange(s, min, max)
+ *   - ScrollBar_handlePointer(s, kind, localX, localY)
  *
  * Setters:
  *   - ScrollBar_setMode(s, mode)
@@ -155,6 +157,17 @@ void ScrollBar_setRange(ScrollBar *s, float min, float max) {
     (*s).max = max;
     (*s).value = pinValue((*s).value, min, max);
     markDirty(s);
+}
+
+void ScrollBar_handlePointer(ScrollBar *s, int kind, float localX, float localY) {
+    (void) localX;
+    if (!s) return;
+    if (kind != PTR_DOWN && kind != PTR_DRAG) return;
+    Panel *p = &(*s).base;
+    Container *cnt = &(*p).base;
+    float h = (*cnt).h > 0.0f ? (*cnt).h : 100.0f;
+    float fraction = localY / h;
+    ScrollBar_clickAt(s, fraction);
 }
 
 // SETTERS

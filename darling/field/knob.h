@@ -1,11 +1,13 @@
 #ifndef DARLING_KNOB_H
 #define DARLING_KNOB_H
 
+#include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
 
 #include "c23/constructor.h"
 #include "darling/panel/panel.h"
+#include "event/pointer.h"
 #include "oop/type.h"
 
 #ifndef ID_KNOB
@@ -39,8 +41,9 @@ Knob *Knob_1(Panel *parent);
 
 #define Knob(...) CONSTRUCTOR_DISPATCH(Knob, __VA_ARGS__)
 
-// Core (shell stub; angular mapping lands with the input pass).
+// Core.
 void Knob_setNormalized(Knob *k, float t);
+void Knob_handlePointer(Knob *k, int kind, float localX, float localY);
 
 // Setters.
 void Knob_setMin(Knob *k, float min);

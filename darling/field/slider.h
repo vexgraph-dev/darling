@@ -1,11 +1,13 @@
 #ifndef DARLING_SLIDER_H
 #define DARLING_SLIDER_H
 
+#include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
 
 #include "c23/constructor.h"
 #include "darling/panel/panel.h"
+#include "event/pointer.h"
 #include "oop/type.h"
 
 #ifndef ID_SLIDER
@@ -43,8 +45,9 @@ Slider *Slider_1(Panel *parent);
 
 #define Slider(...) CONSTRUCTOR_DISPATCH(Slider, __VA_ARGS__)
 
-// Core (shell stub; drag snapping lands with the input pass).
+// Core.
 void Slider_setRange(Slider *s, float min, float max);
+void Slider_handlePointer(Slider *s, int kind, float localX, float localY);
 
 // Setters.
 void Slider_setMin(Slider *s, float min);

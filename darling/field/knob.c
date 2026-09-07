@@ -1,7 +1,9 @@
 #include "darling/field/knob.h"
 
-#include "annotation/incomplete.h"
+#include <math.h>
+
 #include "annotation/overview.h"
+#include "event/pointer.h"
 #include "nio/mem.h"
 #include "oop/type.h"
 
@@ -33,6 +35,7 @@
  *
  * Core Functions:
  *   - Knob_setNormalized(k, t)
+ *   - Knob_handlePointer(k, kind, localX, localY)
  *
  * Setters:
  *   - Knob_setMin(k, min)
@@ -89,20 +92,43 @@ Knob *Knob_1(Panel *parent) {
 
 // CORE FUNCTIONS
 
-void Knob_setNormalized(Knob *k, float t) {
-    ;;INCOMPLETE // angular mapping lands with the drag handler
-    (void)k;
-    (void)t;
-}
-
-// SETTERS
-
 static void markDirty(Knob *k) {
-    if (!k)
-        return;
+    if (!k) return;
     Panel *b = &(*k).base;
     Container_markDirty(&(*b).base);
 }
+
+void Knob_setNormalized(Knob *k, float t) {
+    if (!k) return;
+    if (t < 0.0f) t = 0.0f;
+    if (t > 1.0f) t = 1.0f;
+    float val = (*k).min + t * ((*k).max - (*k).min);
+    if (val != (*k).value) {
+        (*k).value = val;
+        markDirty(k);
+        void (*fn)(void *ctx) = (*k).onChange;
+        void *ctx = (*k).ctx;
+        if (fn) fn(ctx);
+    }
+}
+
+void Knob_handlePointer(Knob *k, int kind, float localX, float localY) {
+    if (!k) return;
+    if (kind != PTR_DOWN && kind != PTR_DRAG) return;
+    Panel *p = &(*k).base;
+    Container *cnt = &(*p).base;
+    float d = (*k).diameter;
+    if (d <= 0.0f) d = (*cnt).w > 0.0f ? (*cnt).w : 40.0f;
+    float cx = d * 0.5f;
+    float cy = d * 0.5f;
+    float dx = localX - cx;
+    float dy = localY - cy;
+    float angle = atan2f(dy, dx); /* [-PI, PI] */
+    float norm = (angle + 3.14159265f) / (2.0f * 3.14159265f);
+    Knob_setNormalized(k, norm);
+}
+
+// SETTERS
 
 static float clampValue(const Knob *k, float value) {
     float lo = (*k).min;
