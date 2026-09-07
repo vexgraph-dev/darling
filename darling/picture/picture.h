@@ -7,8 +7,9 @@
 #include "c23/constructor.h"
 #include "darling/panel/panel.h"
 #include "annotation/intention.h"
+#include "vulkan/vk.h"
 
-;;INTENTION("Retained-mode off-heap picture node: Panel subclass holding an Image asset with -1 auto-size from the image aspect.")
+;;INTENTION("Retained-mode off-heap picture node: Panel subclass holding an Image asset or bindless GPU texture with mode scaling and auto aspect.")
 
 #define PICTURE_AUTO -1.0f
 
@@ -23,6 +24,9 @@ typedef struct Picture {
     float cropY2;
     bool hasImageSize;
     bool hasCrop;
+    int32_t textureId;
+    PictureMode mode;
+    bool ownsTexture;
 } Picture;
 
 Picture *Picture_0(void);
@@ -30,8 +34,19 @@ Picture *Picture_1(void *image);
 
 #define Picture(...) CONSTRUCTOR_DISPATCH(Picture, __VA_ARGS__)
 
+bool Picture_load(Picture *p, const char *vfsPath);
+void Picture_free(Picture *p);
+
 void *Picture_getImage(const Picture *p);
 void Picture_setImage(Picture *p, void *image);
+
+void Picture_setTexture(Picture *p, int32_t textureId);
+int32_t Picture_getTexture(const Picture *p);
+
+void Picture_setMode(Picture *p, PictureMode mode);
+PictureMode Picture_getMode(const Picture *p);
+void Picture_cycleMode(Picture *p);
+const char *Picture_getModeName(PictureMode mode);
 
 void Picture_setImageSize(Picture *p, float w, float h);
 void Picture_getImageSize(const Picture *p, float *outW, float *outH);

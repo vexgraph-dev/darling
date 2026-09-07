@@ -2,6 +2,8 @@
 #include "darling/picture/picture.h"
 #include "nio/mem.h"
 #include "oop/type.h"
+#include "vulkan/vk.h"
+#include "vulkan/texture/texture.h"
 
 ;;OVERVIEW
 /**
@@ -10,7 +12,8 @@
  * LEVEL: L2 — Behavior (UI picture node behavior API)
  * ============================================================================
  * Retained-mode off-heap picture node that hosts an Image asset with optional
- * UV cropping, dimension overrides, and hierarchical layout anchoring.
+ * UV cropping, dimension overrides, bindless Vulkan texture rendering, and
+ * hierarchical layout anchoring.
  *
  * STRUCT FIELDS (Mirroring darling/picture/picture.h):
  * ----------------------------------------------------------------------------
@@ -18,10 +21,15 @@
  *   void *image;           // Pointer to raw Image asset descriptor
  *   float imageSizeW;      // Explicit pixel display width (-1 = auto)
  *   float imageSizeH;      // Explicit pixel display height (-1 = auto)
- *   float cropX1, cropY1;  // Normalized UV top-left crop bounds
- *   float cropX2, cropY2;  // Normalized UV bottom-right crop bounds
+ *   float cropX1;          // Normalized UV top-left X crop bound
+ *   float cropY1;          // Normalized UV top-left Y crop bound
+ *   float cropX2;          // Normalized UV bottom-right X crop bound
+ *   float cropY2;          // Normalized UV bottom-right Y crop bound
  *   bool hasImageSize;     // Explicit dimension override active flag
  *   bool hasCrop;          // Custom UV crop rect active flag
+ *   int32_t textureId;     // Bindless texture ID in GPU registry (-1 = none)
+ *   PictureMode mode;      // Scaling/fill anchor mode (FIT, ZOOM_FILL, etc.)
+ *   bool ownsTexture;      // True if texture was loaded by this Picture and should be freed
  *
  * FUNCTION REGISTRY:
  * ----------------------------------------------------------------------------
@@ -30,12 +38,18 @@
  *   - Picture(image)                          : Picture_1(image)
  *
  * Core Functions:
- *   - (Leverages base Panel render handler; overridden via Panel_setRenderHandler)
+ *   - Picture_renderFn(panel, rend, cmd, ...) : Built-in Vulkan drawTexture renderer
+ *   - Picture_load(p, vfsPath)                : Loads texture via VFS and binds to node
+ *   - Picture_cycleMode(p)                    : Advances to next PictureMode seamlessly
+ *   - Picture_getModeName(mode)               : String label for PictureMode
+ *   - Picture_free(p)                         : Frees node and owned GPU texture
  *
  * Setters:
  *   - Picture_setImage(p, image)
  *   - Picture_setImageSize(p, w, h)
  *   - Picture_setCrop(p, x1, y1, x2, y2)
+ *   - Picture_setTexture(p, textureId)
+ *   - Picture_setMode(p, mode)
  *
  * Getters:
  *   - Picture_getImage(p)
@@ -43,30 +57,56 @@
  *   - Picture_hasImageSize(p)
  *   - Picture_getCrop(p, outX1, outY1, outX2, outY2)
  *   - Picture_hasCrop(p)
+ *   - Picture_getTexture(p)
+ *   - Picture_getMode(p)
  * ============================================================================
  */
+
+// ============================================================================
+// CORE FUNCTIONS (Default Renderer)
+// ============================================================================
+
+static void Picture_renderFn(Panel *panel, void *renderer, void *cmdBuffer,
+                             float surfaceW, float surfaceH,
+                             float x, float y, float w, float h) {
+    (void)renderer;
+    Picture *p = (Picture*) panel;
+    if (!p) return;
+
+    int32_t texId = (*p).textureId;
+    if (texId < 0) {
+        Vk_fillRect(cmdBuffer, surfaceW, surfaceH, x, y, w, h, 1.0f, 0.8f, 0.0f, 1.0f);
+        return;
+    }
+
+    uint32_t imgW = 1, imgH = 1;
+    Texture_getSize(texId, &imgW, &imgH);
+
+    float op = Container_getOpacity(&(*panel).base);
+    Vk_drawTexture(cmdBuffer, surfaceW, surfaceH, x, y, w, h,
+                   1.0f, 1.0f, 1.0f, op,
+                   texId,
+                   (*p).mode,
+                   (float) imgW, (float) imgH);
+}
 
 // ============================================================================
 // CONSTRUCTORS
 // ============================================================================
 
-Picture *Picture_0() {
+Picture *Picture_0(void) {
     Picture *p = (Picture*) Memory_alloc(TYPE_PICTURE_SINGLETON, sizeof(Picture));
     if (!p) return nullptr;
 
-    // Allocate the base Panel structure correctly, mimicking Scene allocation.
-    // Panel_0() gives us a fully initialized UI panel.
     Panel *basePanel = Panel_0();
     if (!basePanel) {
         Memory_free(p);
         return nullptr;
     }
-    
-    // Copy initialized state into our base struct, then free the heap-allocated one
+
     (*p).base = (*basePanel);
     Memory_free(basePanel);
 
-    // Initialize Picture-specific fields (default matching legacy initDefaults)
     (*p).image = nullptr;
     (*p).imageSizeW = 0.0f;
     (*p).imageSizeH = 0.0f;
@@ -76,6 +116,11 @@ Picture *Picture_0() {
     (*p).cropY2 = 0.0f;
     (*p).hasImageSize = false;
     (*p).hasCrop = false;
+    (*p).textureId = -1;
+    (*p).mode = PICTURE_MODE_FIT;
+    (*p).ownsTexture = false;
+
+    Panel_setRenderHandler(&(*p).base, Picture_renderFn);
 
     return p;
 }
@@ -89,10 +134,41 @@ Picture *Picture_1(void *image) {
 }
 
 // ============================================================================
-// CORE FUNCTIONS
+// LIFECYCLE & ASSET BINDING
 // ============================================================================
 
-// (Custom drawing hooks register dynamically via Panel_setRenderHandler)
+bool Picture_load(Picture *p, const char *vfsPath) {
+    if (!p || !vfsPath) return false;
+
+    int32_t newId = Texture_load(vfsPath);
+    if (newId < 0) return false;
+
+    if ((*p).ownsTexture && (*p).textureId >= 0 && (*p).textureId != newId)
+        Texture_free((*p).textureId);
+
+    (*p).textureId = newId;
+    (*p).ownsTexture = true;
+
+    uint32_t w = 0, h = 0;
+    if (Texture_getSize(newId, &w, &h)) {
+        (*p).imageSizeW = (float) w;
+        (*p).imageSizeH = (float) h;
+        (*p).hasImageSize = true;
+    }
+
+    Panel *basePanel = &(*p).base;
+    Container_markDirty(&(*basePanel).base);
+    return true;
+}
+
+void Picture_free(Picture *p) {
+    if (!p) return;
+    if ((*p).ownsTexture && (*p).textureId >= 0) {
+        Texture_free((*p).textureId);
+        (*p).textureId = -1;
+    }
+    Memory_free(p);
+}
 
 // ============================================================================
 // SETTERS
@@ -101,7 +177,49 @@ Picture *Picture_1(void *image) {
 void Picture_setImage(Picture *p, void *image) {
     if (p) {
         (*p).image = image;
-        Container_markDirty(&(*p).base.base); // Panel's base is Container
+        Panel *basePanel = &(*p).base;
+        Container_markDirty(&(*basePanel).base);
+    }
+}
+
+void Picture_setTexture(Picture *p, int32_t textureId) {
+    if (p) {
+        if ((*p).ownsTexture && (*p).textureId >= 0 && (*p).textureId != textureId)
+            Texture_free((*p).textureId);
+        (*p).textureId = textureId;
+        (*p).ownsTexture = false;
+        Panel *basePanel = &(*p).base;
+        Container_markDirty(&(*basePanel).base);
+    }
+}
+
+void Picture_setMode(Picture *p, PictureMode mode) {
+    if (p) {
+        (*p).mode = mode;
+        Panel *basePanel = &(*p).base;
+        Container_markDirty(&(*basePanel).base);
+    }
+}
+
+void Picture_cycleMode(Picture *p) {
+    if (p) {
+        (*p).mode = (PictureMode)(((*p).mode + 1) % 8);
+        Panel *basePanel = &(*p).base;
+        Container_markDirty(&(*basePanel).base);
+    }
+}
+
+const char *Picture_getModeName(PictureMode mode) {
+    switch (mode) {
+        case PICTURE_MODE_FIT:               return "FIT";
+        case PICTURE_MODE_ZOOM_FILL:         return "ZOOM_FILL";
+        case PICTURE_MODE_ZOOM_FIT:          return "ZOOM_FIT";
+        case PICTURE_MODE_FILL_CENTER:       return "FILL_CENTER";
+        case PICTURE_MODE_FILL_TOP_LEFT:     return "FILL_TOP_LEFT";
+        case PICTURE_MODE_FILL_TOP_RIGHT:    return "FILL_TOP_RIGHT";
+        case PICTURE_MODE_FILL_BOTTOM_LEFT:  return "FILL_BOTTOM_LEFT";
+        case PICTURE_MODE_FILL_BOTTOM_RIGHT: return "FILL_BOTTOM_RIGHT";
+        default:                             return "UNKNOWN";
     }
 }
 
@@ -110,7 +228,8 @@ void Picture_setImageSize(Picture *p, float w, float h) {
         (*p).imageSizeW = w;
         (*p).imageSizeH = h;
         (*p).hasImageSize = true;
-        Container_markDirty(&(*p).base.base);
+        Panel *basePanel = &(*p).base;
+        Container_markDirty(&(*basePanel).base);
     }
 }
 
@@ -121,7 +240,8 @@ void Picture_setCrop(Picture *p, float x1, float y1, float x2, float y2) {
         (*p).cropX2 = x2;
         (*p).cropY2 = y2;
         (*p).hasCrop = true;
-        Container_markDirty(&(*p).base.base);
+        Panel *basePanel = &(*p).base;
+        Container_markDirty(&(*basePanel).base);
     }
 }
 
@@ -131,6 +251,14 @@ void Picture_setCrop(Picture *p, float x1, float y1, float x2, float y2) {
 
 void *Picture_getImage(const Picture *p) {
     return p ? (*p).image : nullptr;
+}
+
+int32_t Picture_getTexture(const Picture *p) {
+    return p ? (*p).textureId : -1;
+}
+
+PictureMode Picture_getMode(const Picture *p) {
+    return p ? (*p).mode : PICTURE_MODE_FIT;
 }
 
 void Picture_getImageSize(const Picture *p, float *outW, float *outH) {
