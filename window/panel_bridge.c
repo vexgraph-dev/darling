@@ -98,6 +98,16 @@ int anti_AttachPanelIOSurfaceChildren(Window *window, Panel *contentPanel, int w
         if (!child)
             continue;
 
+        // Skip completely transparent panels with no render handler and no scene.
+        // Pure clamp/layout spacers (like ScrollPanel bounds) must never own an IOSurface.
+        uint32_t bg = Panel_getBackgroundColor(child);
+        Panel_RenderFn rfn = Panel_getRenderHandler(child);
+        uint64_t childType = Memory_type(child);
+        bool isScene = (childType == TYPE_SCENE3D_SINGLETON || childType == TYPE_SCENE2D_SINGLETON
+                        || childType == TYPE_SCENE_SINGLETON);
+        if (bg == PANEL_COLOR_CLEAR && !rfn && !isScene)
+            continue;
+
         // Get the child's MAX size for IOSurface allocation (fixed, never reallocates)
         int maxW = 0, maxH = 0;
         extern void anti_GetPanelMaxSize(Panel *p, int *outMaxW, int *outMaxH);
@@ -114,6 +124,8 @@ int anti_AttachPanelIOSurfaceChildren(Window *window, Panel *contentPanel, int w
 
         int allocW = (int) (maxW * scale + 0.5f);
         int allocH = (int) (maxH * scale + 0.5f);
+        if (allocW <= 0 || allocH <= 0 || allocW > 16384 || allocH > 16384)
+            continue;
 
         // Check if already attached
         extern void *PanelCocoa_fromPanel(void *panel);
@@ -154,6 +166,8 @@ int anti_ResizePanelIOSurfaceChildren(Window *window, Panel *contentPanel, int w
             Container_resolve(&(*child).base, 0.0f, 0.0f, (float) width, (float) height, &rect);
             int w = (int) (rect.z * scale + 0.5f);
             int h = (int) (rect.w * scale + 0.5f);
+            if (w > 16384) w = 16384;
+            if (h > 16384) h = 16384;
             if (w > 0 && h > 0) {
                 extern bool PanelCocoa_setSize(void *pc, int w, int h);
                 PanelCocoa_setSize(pc, w, h);

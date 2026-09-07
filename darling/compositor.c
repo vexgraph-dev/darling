@@ -105,7 +105,7 @@ static IOSurfaceChild *recordChildToIOSurface(VkCommandBuffer cb, Panel *child, 
 
     int canvasW = (int) IOSurfaceGetWidth((IOSurfaceRef) surface);
     int canvasH = (int) IOSurfaceGetHeight((IOSurfaceRef) surface);
-    if (canvasW <= 0 || canvasH <= 0)
+    if (canvasW <= 0 || canvasH <= 0 || canvasW > 16384 || canvasH > 16384)
         return nullptr;
 
     IOSurfaceChild *ioChild = nullptr;
@@ -236,6 +236,14 @@ static void renderNativeContent(Window *window, Panel *contentPanel, int winW, i
         Panel *child = Panel_getChild(contentPanel, i);
         if (!child || child == scenePanel) continue;
 
+        uint32_t bg = Panel_getBackgroundColor(child);
+        Panel_RenderFn rfn = Panel_getRenderHandler(child);
+        uint64_t childType = Memory_type(child);
+        bool isScene = (childType == TYPE_SCENE3D_SINGLETON || childType == TYPE_SCENE2D_SINGLETON
+                        || childType == TYPE_SCENE_SINGLETON);
+        if (bg == PANEL_COLOR_CLEAR && !rfn && !isScene)
+            continue;
+
         extern void *PanelCocoa_fromPanel(void *panel);
         void *pc = PanelCocoa_fromPanel(child);
         if (!pc) continue;
@@ -247,7 +255,7 @@ static void renderNativeContent(Window *window, Panel *contentPanel, int winW, i
         Container_resolve(&(*child).base, 0.0f, 0.0f, (float)winW, (float)winH, &rect);
         const int pxW = (int)(rect.z * kx + 0.5f);
         const int pxH = (int)(rect.w * ky + 0.5f);
-        if (pxW <= 0 || pxH <= 0) continue;
+        if (pxW <= 0 || pxH <= 0 || pxW > 16384 || pxH > 16384) continue;
 
         IOSurfaceChild *ioChild = recordChildToIOSurface(cb, child, surface, pxW, pxH);
         if (ioChild) {
