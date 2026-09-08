@@ -241,24 +241,26 @@ void Darling_bridgeAttachWindow(uint32_t windowId, Panel *root) {
     if ((*slot).active)
         return;
 
-    (*slot).keyListener.self = slot;
-    (*slot).keyListener.onKeyDown = bridgeKeyDown;
-    (*slot).keyListener.onKeyUp = bridgeKeyUp;
-    (*slot).keyListener.onKeyRepeat = bridgeKeyRepeat;
-    (*slot).keyListener.onCharTyped = nullptr;
+    KeyHandler *kh = &(*slot).keyListener;
+    (*kh).self = slot;
+    (*kh).onKeyDown = bridgeKeyDown;
+    (*kh).onKeyUp = bridgeKeyUp;
+    (*kh).onKeyRepeat = bridgeKeyRepeat;
+    (*kh).onCharTyped = nullptr;
 
-    (*slot).mouseListener.self = slot;
-    (*slot).mouseListener.onMouseDown = bridgeMouseDown;
-    (*slot).mouseListener.onMouseUp = bridgeMouseUp;
-    (*slot).mouseListener.onMouseRepeat = nullptr;
-    (*slot).mouseListener.onMouseMove = bridgeMouseMove;
-    (*slot).mouseListener.onMouseMoveDelta = nullptr;
-    (*slot).mouseListener.onMouseDrag = bridgeMouseDrag;
-    (*slot).mouseListener.onMouseScroll = nullptr;
-    (*slot).mouseListener.onMouseZoom = nullptr;
+    MouseHandler *mh = &(*slot).mouseListener;
+    (*mh).self = slot;
+    (*mh).onMouseDown = bridgeMouseDown;
+    (*mh).onMouseUp = bridgeMouseUp;
+    (*mh).onMouseRepeat = nullptr;
+    (*mh).onMouseMove = bridgeMouseMove;
+    (*mh).onMouseMoveDelta = nullptr;
+    (*mh).onMouseDrag = bridgeMouseDrag;
+    (*mh).onMouseScroll = nullptr;
+    (*mh).onMouseZoom = nullptr;
 
-    Key_attachWindow(windowId, &(*slot).keyListener);
-    Mouse_attachWindow(windowId, &(*slot).mouseListener);
+    Key_attachWindow(windowId, kh);
+    Mouse_attachWindow(windowId, mh);
     (*slot).active = true;
 }
 
@@ -268,8 +270,10 @@ void Darling_bridgeDetachWindow(uint32_t windowId) {
     BridgeSlot *slot = &s_slots[windowId];
     if (!(*slot).active)
         return;
-    (void) Key_detachWindow(windowId, &(*slot).keyListener);
-    (void) Mouse_detachWindow(windowId, &(*slot).mouseListener);
+    KeyHandler *kh = &(*slot).keyListener;
+    MouseHandler *mh = &(*slot).mouseListener;
+    (void) Key_detachWindow(windowId, kh);
+    (void) Mouse_detachWindow(windowId, mh);
     (*slot).active = false;
     (*slot).root = nullptr;
     (*slot).focused = nullptr;
@@ -315,7 +319,8 @@ void Darling_bridgeDetach(void) {
 void Darling_bridgeSetFocusedWindow(uint32_t windowId, Panel *p) {
     if (windowId < 1 || windowId >= DARLING_MAX_WINDOW_BRIDGES)
         return;
-    s_slots[windowId].focused = p;
+    BridgeSlot *slot = &s_slots[windowId];
+    (*slot).focused = p;
 }
 
 void Darling_bridgeSetFocused(Panel *p) {
@@ -328,13 +333,15 @@ void Darling_bridgeSetFocused(Panel *p) {
 Panel *Darling_bridgeGetFocusedWindow(uint32_t windowId) {
     if (windowId < 1 || windowId >= DARLING_MAX_WINDOW_BRIDGES)
         return nullptr;
-    return s_slots[windowId].focused;
+    BridgeSlot *slot = &s_slots[windowId];
+    return (*slot).focused;
 }
 
 Panel *Darling_bridgeGetRootWindow(uint32_t windowId) {
     if (windowId < 1 || windowId >= DARLING_MAX_WINDOW_BRIDGES)
         return nullptr;
-    return s_slots[windowId].root;
+    BridgeSlot *slot = &s_slots[windowId];
+    return (*slot).root;
 }
 
 Panel *Darling_bridgeGetFocused(void) {
