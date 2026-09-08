@@ -124,6 +124,10 @@ bool Panel_removeChild(Panel *p, Panel *child);
 // Structural deep copy with aliased payloads; the copy is attached to parent.
 Panel *Panel_add(Panel *parent, const Panel *node);
 
+// Tree dirtiness (present-on-demand support).
+bool Panel_isTreeDirty(const Panel *p);
+void Panel_clearTreeDirty(Panel *p);
+
 // View bookkeeping.
 const Panel *Panel_getSource(const Panel *p);
 int Panel_refCount(const Panel *p);

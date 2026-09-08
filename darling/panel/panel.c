@@ -39,6 +39,8 @@
  *   - Panel_removeChild(p, child)
  *   - Panel_add(parent, node)
  *   - Panel_refCount(p)
+ *   - Panel_isTreeDirty(p)
+ *   - Panel_clearTreeDirty(p)
  *
  * Setters:
  *   - Panel_setBackgroundColor(p, color)
@@ -315,3 +317,30 @@ Panel *Panel_add(Panel *parent, const Panel *node) {
 
 // Note: children lists are owned by each parent; Panel_free would need the
 // pool-wide walker. Deferred to the scene teardown pass.
+
+bool Panel_isTreeDirty(const Panel *p) {
+    if (!p)
+        return false;
+    const Container *c = &(*p).base;
+    if (Container_isDirty(c))
+        return true;
+    size_t n = Panel_childCount(p);
+    for (size_t i = 0; i < n; i++) {
+        Panel *child = Panel_getChild(p, i);
+        if (Panel_isTreeDirty(child))
+            return true;
+    }
+    return false;
+}
+
+void Panel_clearTreeDirty(Panel *p) {
+    if (!p)
+        return;
+    Container *c = &(*p).base;
+    Container_clearDirty(c);
+    size_t n = Panel_childCount(p);
+    for (size_t i = 0; i < n; i++) {
+        Panel *child = Panel_getChild(p, i);
+        Panel_clearTreeDirty(child);
+    }
+}

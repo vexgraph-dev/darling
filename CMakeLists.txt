@@ -270,5 +270,13 @@ if(NOT TARGET textarea_test)
     target_link_libraries(textarea_test PRIVATE darling)
 endif()
 
+# Panel dirty artifact: headless recursive tree dirtiness and clearing suite.
+if(NOT TARGET panel_dirty_test)
+    add_executable(panel_dirty_test
+        darling/panel/panel_dirty_test.c
+    )
+    target_link_libraries(panel_dirty_test PRIVATE darling)
+endif()
+
 
 
