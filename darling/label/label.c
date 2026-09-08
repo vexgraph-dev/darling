@@ -617,13 +617,15 @@ void Label_setText(Label *label, const char *text) {
 void Label_setTextBorrowed(Label *label, const char *text) {
     if (!label)
         return;
-#if defined(DEBUG_BORROW_CHECK)
+    // Always-on lifetime guard: a transient string must not outlive the transient
+    // arena.  Transient_contains is two pointer comparisons — essentially free
+    // compared to the raster work that follows.  abort() here is intentional:
+    // a dangling borrowed pointer is a silent use-after-free in the next frame.
     if (Transient_contains(text) && !Transient_contains(label)) {
         fprintf(stderr, "[LIFETIME ESCAPE] Label_setTextBorrowed: transient string %p cannot be borrowed by non-transient label %p\n",
                 text, (void*) label);
         abort();
     }
-#endif
     if ((*label).text && (*label).ownsText)
         Memory_free((*label).text);
     (*label).text = (char*) text;
@@ -662,13 +664,12 @@ void Label_setFontFamily(Label *label, const char *family) {
 void Label_setFontFamilyBorrowed(Label *label, const char *family) {
     if (!label)
         return;
-#if defined(DEBUG_BORROW_CHECK)
+    // Always-on lifetime guard — see Label_setTextBorrowed for rationale.
     if (Transient_contains(family) && !Transient_contains(label)) {
         fprintf(stderr, "[LIFETIME ESCAPE] Label_setFontFamilyBorrowed: transient family %p cannot be borrowed by non-transient label %p\n",
                 family, (void*) label);
         abort();
     }
-#endif
     if ((*label).fontFamily && (*label).ownsFontFamily)
         Memory_free((*label).fontFamily);
     (*label).fontFamily = (char*) family;
