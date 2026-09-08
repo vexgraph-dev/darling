@@ -24,7 +24,7 @@ Instead, `darling` combines **self-describing C23 memory blocks** with a **hardw
 
 ## Workspace Integration & How to Use It
 
-`darling` sits at Layer 3 in the `@vexgraph-dev` vertical integration stack, depending on `vexspoke` (core memory & math) and `hotcwap` (native OS windowing):
+`darling` is an R2 feature in the supervisor order (Rule 17: `R0 hotcwap > R1 vexspoke > R1.5 graphvex > R2 features > R3 engines`), registering into the R0 Kernel via `Application` + `HotModule`. It depends on `vexspoke` (core memory & math), `graphvex` (GPU), and `hotcwap` (native OS windowing):
 
 ```
 workspace/

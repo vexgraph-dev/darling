@@ -31,36 +31,79 @@
  * DEFERRED: char composition, scroll/zoom/delta, touch gestures.
  *
  * STRUCT FIELDS: none — procedural handoff (operates on Panel tree +
- * event structs). File statics below hold the binding, same pattern as
- * hotcwap loaders: s_root (pointer tree), s_focused (key target),
- * s_attached (listener guard), s_keyListener/s_mouseListener (vtables).
+ * event structs). File statics below hold the bindings: s_slots (per-window
+ * bridge mapping for windowId 1..7), s_root / s_focused (legacy global).
+ *
+ * PRIVATE HELPERS:
+ * ----------------------------------------------------------------------------
+ *   BridgeSlot:
+ *     uint32_t windowId;           // bound window id (1..7)
+ *     Panel *root;                 // tree root for pointer delivery
+ *     Panel *focused;              // key target for UIKeyEvent
+ *     KeyHandler keyListener;      // window-scoped key vtable
+ *     MouseHandler mouseListener;  // window-scoped mouse vtable
+ *     bool active;                 // slot in-use flag
  *
  * FUNCTION REGISTRY:
  * ----------------------------------------------------------------------------
  * Core Functions:
+ *   - Darling_bridgeAttachWindow(windowId, root)
+ *   - Darling_bridgeDetachWindow(windowId)
  *   - Darling_bridgeAttach(root)
  *   - Darling_bridgeDetach()
  *
  * Setters:
+ *   - Darling_bridgeSetFocusedWindow(windowId, p)
  *   - Darling_bridgeSetFocused(p)
  *
  * Getters:
+ *   - Darling_bridgeGetFocusedWindow(windowId)
+ *   - Darling_bridgeGetRootWindow(windowId)
  *   - Darling_bridgeGetFocused()
  *   - Darling_bridgeGetRoot()
  * ============================================================================
  */
 
+#define DARLING_MAX_WINDOW_BRIDGES 8
+
+typedef struct BridgeSlot {
+    uint32_t windowId;
+    Panel *root;
+    Panel *focused;
+    KeyHandler keyListener;
+    MouseHandler mouseListener;
+    bool active;
+} BridgeSlot;
+
+static BridgeSlot s_slots[DARLING_MAX_WINDOW_BRIDGES];
+
+// Legacy global singletons
 static Panel *s_root = nullptr;
 static Panel *s_focused = nullptr;
 static bool s_attached = false;
 static KeyHandler s_keyListener;
 static MouseHandler s_mouseListener;
 
+static inline Panel *resolveFocused(void *self) {
+    if (self) {
+        BridgeSlot *slot = (BridgeSlot*) self;
+        return (*slot).focused;
+    }
+    return s_focused;
+}
+
+static inline Panel *resolveRoot(void *self) {
+    if (self) {
+        BridgeSlot *slot = (BridgeSlot*) self;
+        return (*slot).root;
+    }
+    return s_root;
+}
+
 // --- raw key callbacks (exactNanos = capture-frozen, passthrough) -----------
 
 static void bridgeKeyDown(void *self, int keyEvent, uint64_t exactNanos) {
-    (void)self;
-    Panel *f = s_focused;
+    Panel *f = resolveFocused(self);
     if (!f)
         return;
     UIKeyEvent *ev = UIKeyEvent_0();
@@ -87,8 +130,7 @@ static void bridgeKeyDown(void *self, int keyEvent, uint64_t exactNanos) {
 }
 
 static void bridgeKeyUp(void *self, int keyEvent, uint64_t exactNanos) {
-    (void)self;
-    Panel *f = s_focused;
+    Panel *f = resolveFocused(self);
     if (!f)
         return;
     UIKeyEvent *ev = UIKeyEvent_0();
@@ -115,8 +157,7 @@ static void bridgeKeyUp(void *self, int keyEvent, uint64_t exactNanos) {
 }
 
 static void bridgeKeyRepeat(void *self, int keyEvent, uint64_t exactNanos) {
-    (void)self;
-    Panel *f = s_focused;
+    Panel *f = resolveFocused(self);
     if (!f)
         return;
     UIKeyEvent *ev = UIKeyEvent_0();
@@ -135,8 +176,7 @@ static void bridgeKeyRepeat(void *self, int keyEvent, uint64_t exactNanos) {
 // --- raw mouse callbacks -----------------------------------------------------
 
 static void bridgeMouseDown(void *self, int mouseEvent, uint64_t exactNanos) {
-    (void)self;
-    Panel *root = s_root;
+    Panel *root = resolveRoot(self);
     if (!root)
         return;
     int button = Mouse_button(mouseEvent);
@@ -151,8 +191,7 @@ static void bridgeMouseDown(void *self, int mouseEvent, uint64_t exactNanos) {
 }
 
 static void bridgeMouseUp(void *self, int mouseEvent, uint64_t exactNanos) {
-    (void)self;
-    Panel *root = s_root;
+    Panel *root = resolveRoot(self);
     if (!root)
         return;
     int button = Mouse_button(mouseEvent);
@@ -167,8 +206,7 @@ static void bridgeMouseUp(void *self, int mouseEvent, uint64_t exactNanos) {
 }
 
 static void bridgeMouseMove(void *self, double x, double y) {
-    (void)self;
-    Panel *root = s_root;
+    Panel *root = resolveRoot(self);
     if (!root)
         return;
     PointerEvent *ev = PointerEvent_4(PTR_MOVE, (float)x, (float)y, 0);
@@ -180,8 +218,7 @@ static void bridgeMouseMove(void *self, double x, double y) {
 }
 
 static void bridgeMouseDrag(void *self, int button, double x, double y) {
-    (void)self;
-    Panel *root = s_root;
+    Panel *root = resolveRoot(self);
     if (!root)
         return;
     PointerEvent *ev = PointerEvent_4(PTR_DRAG, (float)x, (float)y, button);
@@ -194,6 +231,50 @@ static void bridgeMouseDrag(void *self, int button, double x, double y) {
 
 // CORE FUNCTIONS
 // ============================================================================
+
+void Darling_bridgeAttachWindow(uint32_t windowId, Panel *root) {
+    if (windowId < 1 || windowId >= DARLING_MAX_WINDOW_BRIDGES)
+        return;
+    BridgeSlot *slot = &s_slots[windowId];
+    (*slot).windowId = windowId;
+    (*slot).root = root;
+    if ((*slot).active)
+        return;
+
+    (*slot).keyListener.self = slot;
+    (*slot).keyListener.onKeyDown = bridgeKeyDown;
+    (*slot).keyListener.onKeyUp = bridgeKeyUp;
+    (*slot).keyListener.onKeyRepeat = bridgeKeyRepeat;
+    (*slot).keyListener.onCharTyped = nullptr;
+
+    (*slot).mouseListener.self = slot;
+    (*slot).mouseListener.onMouseDown = bridgeMouseDown;
+    (*slot).mouseListener.onMouseUp = bridgeMouseUp;
+    (*slot).mouseListener.onMouseRepeat = nullptr;
+    (*slot).mouseListener.onMouseMove = bridgeMouseMove;
+    (*slot).mouseListener.onMouseMoveDelta = nullptr;
+    (*slot).mouseListener.onMouseDrag = bridgeMouseDrag;
+    (*slot).mouseListener.onMouseScroll = nullptr;
+    (*slot).mouseListener.onMouseZoom = nullptr;
+
+    Key_attachWindow(windowId, &(*slot).keyListener);
+    Mouse_attachWindow(windowId, &(*slot).mouseListener);
+    (*slot).active = true;
+}
+
+void Darling_bridgeDetachWindow(uint32_t windowId) {
+    if (windowId < 1 || windowId >= DARLING_MAX_WINDOW_BRIDGES)
+        return;
+    BridgeSlot *slot = &s_slots[windowId];
+    if (!(*slot).active)
+        return;
+    (void) Key_detachWindow(windowId, &(*slot).keyListener);
+    (void) Mouse_detachWindow(windowId, &(*slot).mouseListener);
+    (*slot).active = false;
+    (*slot).root = nullptr;
+    (*slot).focused = nullptr;
+    (*slot).windowId = 0;
+}
 
 void Darling_bridgeAttach(Panel *root) {
     s_root = root;
@@ -221,8 +302,8 @@ void Darling_bridgeAttach(Panel *root) {
 void Darling_bridgeDetach(void) {
     if (!s_attached)
         return;
-    (void)Key_removeListener(&s_keyListener);
-    (void)Mouse_removeListener(&s_mouseListener);
+    (void) Key_removeListener(&s_keyListener);
+    (void) Mouse_removeListener(&s_mouseListener);
     s_attached = false;
     s_root = nullptr;
     s_focused = nullptr;
@@ -231,12 +312,30 @@ void Darling_bridgeDetach(void) {
 // SETTERS
 // ============================================================================
 
+void Darling_bridgeSetFocusedWindow(uint32_t windowId, Panel *p) {
+    if (windowId < 1 || windowId >= DARLING_MAX_WINDOW_BRIDGES)
+        return;
+    s_slots[windowId].focused = p;
+}
+
 void Darling_bridgeSetFocused(Panel *p) {
     s_focused = p;
 }
 
 // GETTERS
 // ============================================================================
+
+Panel *Darling_bridgeGetFocusedWindow(uint32_t windowId) {
+    if (windowId < 1 || windowId >= DARLING_MAX_WINDOW_BRIDGES)
+        return nullptr;
+    return s_slots[windowId].focused;
+}
+
+Panel *Darling_bridgeGetRootWindow(uint32_t windowId) {
+    if (windowId < 1 || windowId >= DARLING_MAX_WINDOW_BRIDGES)
+        return nullptr;
+    return s_slots[windowId].root;
+}
 
 Panel *Darling_bridgeGetFocused(void) {
     return s_focused;
