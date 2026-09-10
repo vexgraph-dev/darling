@@ -63,13 +63,13 @@ add_library(darling STATIC
     darling/picture/picture.c
     darling/label/rich_label.c
     darling/scene/scene.c
-    darling/panel/layeredpanel.c
-    darling/panel/sectionpanel.c
-    darling/panel/list_panel.c
-    darling/panel/grid_panel.c
+    darling/panel/layered_container.c
+    darling/panel/section_container.c
+    darling/panel/list_container.c
+    darling/panel/grid_container.c
     darling/panel/markdown_panel.c
     darling/panel/richtext_panel.c
-    darling/panel/scroll_panel.c
+    darling/panel/scroll_container.c
     darling/field/scrollbar.c
     darling/button/button.c
     darling/button/switch.c

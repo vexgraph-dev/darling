@@ -20,7 +20,7 @@
  * real RichText_setString/setStyle/layout pipeline — layout is never
  * reimplemented here. setSource and setMaxWidth re-run RichText_layout on
  * the aliased source (relayout-on-attach) and resize the panel height to
- * the laid-out height; contentHeight exposes that height for ScrollPanel
+ * the laid-out height; contentHeight exposes that height for ScrollContainer
  * pairing. The source is aliased, never owned or freed.
  *
  * STRUCT FIELDS (Mirroring darling/panel/richtext_panel.h):

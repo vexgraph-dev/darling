@@ -685,11 +685,11 @@ void Button_animate(struct Button *b, Anim *a) {
             Anim_play((Container *)p, a, ANIM_KIND_PANEL);   \
     }
 
-ANIM_PANEL_FACADE(ListPanel, ListPanel)
-ANIM_PANEL_FACADE(GridPanel, GridPanel)
-ANIM_PANEL_FACADE(ScrollPanel, ScrollPanel)
-ANIM_PANEL_FACADE(SectionPanel, SectionPanel)
-ANIM_PANEL_FACADE(LayeredPanel, LayeredPanel)
+ANIM_PANEL_FACADE(ListContainer, ListContainer)
+ANIM_PANEL_FACADE(GridContainer, GridContainer)
+ANIM_PANEL_FACADE(ScrollContainer, ScrollContainer)
+ANIM_PANEL_FACADE(SectionContainer, SectionContainer)
+ANIM_PANEL_FACADE(LayeredContainer, LayeredContainer)
 ANIM_PANEL_FACADE(MarkdownPanel, MarkdownPanel)
 ANIM_PANEL_FACADE(RichTextPanel, RichTextPanel)
 ANIM_PANEL_FACADE(Switch, Switch)

@@ -11,15 +11,15 @@
  * CLASS: Container
  * LEVEL: L2 — Behavior (UI layout base behavior API)
  * ============================================================================
- * Layout base of every darling node: position, size, scale, the two-anchor
+ * Layout base of every darling node: position, size, scale, the anchor+pivot
  * system, percentage placement, z-order and the visible/enabled/dirty flags.
  *
  * STRUCT FIELDS (Mirroring darling/container.h):
  * ----------------------------------------------------------------------------
  *   float x, y, w, h;      // Position + size in parent units
  *   float scaleX, scaleY;  // Axis scale multipliers
- *   uint32_t anchors;      // Low byte parentAnchor 0..8, high byte selfAnchor+1
- *   int32_t pivot;         // PIVOT_REFERENCE_* source-of-truth point
+ *   uint8_t anchor;        // CONTAINER_ANCHOR_* 0..8: where on parent during resize
+ *   int32_t pivot;         // CONTAINER_PIVOT_* 0..4: element's reference point
  *   float percentX, percentY; // Percentage placement (-1 = unset)
  *   int32_t z;             // Z-order within parent
  *   uint8_t visible;       // Visibility flag
@@ -56,9 +56,8 @@
  *   - Container_setMinSize(c, w, h)
  *   - Container_setMaxSize(c, w, h)
  *   - Container_setScale(c, sx, sy)
- *   - Container_setParentAnchor(c, anchor)
- *   - Container_setSelfAnchor(c, anchor)
- *   - Container_setPivotReference(c, pivot)
+ *   - Container_setAnchor(c, anchor)
+ *   - Container_setPivot(c, pivot)
  *   - Container_setCenter(c)
  *   - Container_setPercentX(c, pct)
  *   - Container_setPercentY(c, pct)
@@ -78,9 +77,8 @@
  *   - Container_getHeight(c)
  *   - Container_getScaleWidth(c)
  *   - Container_getScaleHeight(c)
- *   - Container_getParentAnchor(c)
- *   - Container_getSelfAnchor(c)
- *   - Container_getPivotReference(c)
+ *   - Container_getAnchor(c)
+ *   - Container_getPivot(c)
  *   - Container_getPercentX(c)
  *   - Container_getPercentY(c)
  *   - Container_hasPercentX(c)
@@ -110,8 +108,8 @@ Container *Container_0(void) {
     (*c).h = 0.0f;
     (*c).scaleX = 1.0f;
     (*c).scaleY = 1.0f;
-    (*c).anchors = CONTAINER_PARENT_ANCHOR_TOP_LEFT; // selfAnchor byte 0 = unset (TOP_LEFT)
-    (*c).pivot = CONTAINER_PIVOT_REFERENCE_TOP_LEFT;
+    (*c).anchor = CONTAINER_ANCHOR_TOP_LEFT;
+    (*c).pivot = CONTAINER_PIVOT_TOP_LEFT;
     (*c).percentX = CONTAINER_PERCENT_UNSET;
     (*c).percentY = CONTAINER_PERCENT_UNSET;
     (*c).z = 0;
@@ -156,14 +154,11 @@ void Container_setLocation(Container *c, float x, float y) {
 
 void Container_setSize(Container *c, float w, float h) {
     if (!c) return;
-    // First call sets the max (the "allocate once" ceiling)
-    if ((*c).maxW <= 0.0f) (*c).maxW = w;
-    if ((*c).maxH <= 0.0f) (*c).maxH = h;
-    // Clamp to [min, max]
+    // Clamp to [min, max] if constraints are configured
     if (w < (*c).minW) w = (*c).minW;
     if (h < (*c).minH) h = (*c).minH;
-    if (w > (*c).maxW) w = (*c).maxW;
-    if (h > (*c).maxH) h = (*c).maxH;
+    if ((*c).maxW > 0.0f && w > (*c).maxW) w = (*c).maxW;
+    if ((*c).maxH > 0.0f && h > (*c).maxH) h = (*c).maxH;
     Container_setWidth(c, w);
     Container_setHeight(c, h);
 }
@@ -209,38 +204,23 @@ void Container_setScale(Container *c, float sx, float sy) {
     layoutEdited(c);
 }
 
-int Container_getParentAnchor(const Container *c) {
-    return c ? ((*c).anchors & 0xFFu) : 0;
+int Container_getAnchor(const Container *c) {
+    return c ? (*c).anchor : CONTAINER_ANCHOR_TOP_LEFT;
 }
 
-void Container_setParentAnchor(Container *c, int anchor) {
-    if (!c || anchor < CONTAINER_PARENT_ANCHOR_TOP_LEFT || anchor > CONTAINER_PARENT_ANCHOR_BOTTOM_RIGHT)
+void Container_setAnchor(Container *c, int anchor) {
+    if (!c || anchor < CONTAINER_ANCHOR_TOP_LEFT || anchor > CONTAINER_ANCHOR_BOTTOM_RIGHT)
         return;
-    (*c).anchors = ((*c).anchors & 0xFFFFFF00u) | ((uint32_t)anchor & 0xFFu);
+    (*c).anchor = (uint8_t)anchor;
     layoutEdited(c);
 }
 
-int Container_getSelfAnchor(const Container *c) {
-    if (!c)
-        return CONTAINER_SELF_ANCHOR_TOP_LEFT;
-    uint32_t raw = ((*c).anchors >> 8) & 0xFFu;
-    return raw == 0 ? CONTAINER_SELF_ANCHOR_TOP_LEFT : (int)raw - 1;
+int Container_getPivot(const Container *c) {
+    return c ? (*c).pivot : CONTAINER_PIVOT_TOP_LEFT;
 }
 
-void Container_setSelfAnchor(Container *c, int anchor) {
-    if (!c || anchor < CONTAINER_SELF_ANCHOR_TOP_LEFT || anchor > CONTAINER_SELF_ANCHOR_BOTTOM_RIGHT)
-        return;
-    uint32_t parent = (*c).anchors & 0xFFu;
-    (*c).anchors = (parent) | (((uint32_t)anchor + 1u) << 8);
-    layoutEdited(c);
-}
-
-int Container_getPivotReference(const Container *c) {
-    return c ? (*c).pivot : CONTAINER_PIVOT_REFERENCE_TOP_LEFT;
-}
-
-void Container_setPivotReference(Container *c, int pivot) {
-    if (!c || pivot < CONTAINER_PIVOT_REFERENCE_TOP_LEFT || pivot > CONTAINER_PIVOT_REFERENCE_CENTER)
+void Container_setPivot(Container *c, int pivot) {
+    if (!c || pivot < CONTAINER_PIVOT_TOP_LEFT || pivot > CONTAINER_PIVOT_CENTER)
         return;
     (*c).pivot = pivot;
     layoutEdited(c);
@@ -249,8 +229,7 @@ void Container_setPivotReference(Container *c, int pivot) {
 void Container_setCenter(Container *c) {
     if (!c)
         return;
-    Container_setSelfAnchor(c, CONTAINER_SELF_ANCHOR_TOP_LEFT);
-    Container_setPivotReference(c, CONTAINER_PIVOT_REFERENCE_CENTER);
+    Container_setPivot(c, CONTAINER_PIVOT_CENTER);
     (*c).percentX = 0.5f;
     (*c).percentY = 0.5f;
     (*c).dirty = 1;
@@ -355,45 +334,32 @@ void Container_resolve(Container *c, float parentX, float parentY,
     float x = (*c).x;
     float y = (*c).y;
 
-    // Parent anchor: find the absolute position on the parent bounds
+    // Anchor: find the absolute position on the parent bounds
     float px = 0.0f;
     float py = 0.0f;
-    switch (Container_getParentAnchor(c)) {
-        case 1: px = parentW * 0.5f; break; // TOP_CENTER
-        case 2: px = parentW;        break; // TOP_RIGHT
-        case 3: py = parentH * 0.5f; break; // MIDDLE_LEFT
-        case 4: px = parentW * 0.5f; py = parentH * 0.5f; break; // MIDDLE_CENTER
-        case 5: px = parentW;        py = parentH * 0.5f; break; // MIDDLE_RIGHT
-        case 6: py = parentH;        break; // BOTTOM_LEFT
-        case 7: px = parentW * 0.5f; py = parentH;        break; // BOTTOM_CENTER
-        case 8: px = parentW;        py = parentH;        break; // BOTTOM_RIGHT
+    switch (Container_getAnchor(c)) {
+        case CONTAINER_ANCHOR_TOP_CENTER:    px = parentW * 0.5f; break;
+        case CONTAINER_ANCHOR_TOP_RIGHT:     px = parentW;        break;
+        case CONTAINER_ANCHOR_MIDDLE_LEFT:   py = parentH * 0.5f; break;
+        case CONTAINER_ANCHOR_MIDDLE_CENTER: px = parentW * 0.5f; py = parentH * 0.5f; break;
+        case CONTAINER_ANCHOR_MIDDLE_RIGHT:  px = parentW;        py = parentH * 0.5f; break;
+        case CONTAINER_ANCHOR_BOTTOM_LEFT:   py = parentH;        break;
+        case CONTAINER_ANCHOR_BOTTOM_CENTER: px = parentW * 0.5f; py = parentH;        break;
+        case CONTAINER_ANCHOR_BOTTOM_RIGHT:  px = parentW;        py = parentH;        break;
         default: break; // TOP_LEFT
     }
 
-    // Self anchor: find the absolute position on the child bounds
-    float sx = 0.0f;
-    float sy = 0.0f;
-    switch (Container_getSelfAnchor(c)) {
-        case 1: sx = sw * 0.5f; break; // TOP_CENTER
-        case 2: sx = sw;        break; // TOP_RIGHT
-        case 3: sy = sh * 0.5f; break; // MIDDLE_LEFT
-        case 4: sx = sw * 0.5f; sy = sh * 0.5f; break; // MIDDLE_CENTER
-        case 5: sx = sw;        sy = sh * 0.5f; break; // MIDDLE_RIGHT
-        case 6: sy = sh;        break; // BOTTOM_LEFT
-        case 7: sx = sw * 0.5f; sy = sh;        break; // BOTTOM_CENTER
-        case 8: sx = sw;        sy = sh;        break; // BOTTOM_RIGHT
-        default: break; // TOP_LEFT
-    }
-
-    // Margins push INWARD based on the self anchor, as requested
+    // Margin direction based on anchor (pushes inward from the anchor edge)
     float marginX = x;
     float marginY = y;
-    int sA = Container_getSelfAnchor(c);
-    if (sA == 2 || sA == 5 || sA == 8) marginX = -x; // right-anchored margins pull left
-    if (sA == 6 || sA == 7 || sA == 8) marginY = -y; // bottom-anchored margins pull up
+    int a = Container_getAnchor(c);
+    if (a == CONTAINER_ANCHOR_TOP_RIGHT || a == CONTAINER_ANCHOR_MIDDLE_RIGHT || a == CONTAINER_ANCHOR_BOTTOM_RIGHT)
+        marginX = -x; // right-anchored margins pull left
+    if (a == CONTAINER_ANCHOR_BOTTOM_LEFT || a == CONTAINER_ANCHOR_BOTTOM_CENTER || a == CONTAINER_ANCHOR_BOTTOM_RIGHT)
+        marginY = -y; // bottom-anchored margins pull up
 
-    float screenX = parentX + px - sx + marginX;
-    float screenY = parentY + py - sy + marginY;
+    float screenX = parentX + px + marginX;
+    float screenY = parentY + py + marginY;
 
     // Phase 1 margin law: final = location + margin, applied at resolve time.
     // Stored location is never rewritten; zero margins resolve bit-identically.
@@ -409,13 +375,13 @@ void Container_resolve(Container *c, float parentX, float parentY,
     // Pivot shift: the pivot point lands at the resolved target.
     float offX = 0.0f;
     float offY = 0.0f;
-    switch ((*c).pivot) {
-        case CONTAINER_PIVOT_REFERENCE_TOP_RIGHT:    offX = sw; break;
-        case CONTAINER_PIVOT_REFERENCE_BOTTOM_LEFT:  offY = sh; break;
-        case CONTAINER_PIVOT_REFERENCE_BOTTOM_RIGHT: offX = sw; offY = sh; break;
-        case CONTAINER_PIVOT_REFERENCE_CENTER:       offX = sw * 0.5f; offY = sh * 0.5f; break;
+    switch (Container_getPivot(c)) {
+        case CONTAINER_PIVOT_TOP_RIGHT:    offX = sw; break;
+        case CONTAINER_PIVOT_BOTTOM_LEFT:  offY = sh; break;
+        case CONTAINER_PIVOT_BOTTOM_RIGHT: offX = sw; offY = sh; break;
+        case CONTAINER_PIVOT_CENTER:       offX = sw * 0.5f; offY = sh * 0.5f; break;
         default:
-            break;
+            break; // TOP_LEFT
     }
     screenX -= offX;
     screenY -= offY;

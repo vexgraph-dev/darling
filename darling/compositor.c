@@ -9,6 +9,7 @@
 #include "vulkan/sdf_gpu.h"
 #include "vulkan/vk.h"
 #include "vulkan/vk_iosurface.h"
+#include "vulkan/vk_pane.h"
 #include "vulkan/vk_scene.h"
 #include "vulkan/vk_view.h"
 #include "window/window.h"
@@ -78,6 +79,8 @@ typedef struct IOSurfaceChild {
     Panel *panel;
     VkIOSurface *surf;
     VkFramebuffer fb;
+    int lastPxW;
+    int lastPxH;
     bool valid;
 } IOSurfaceChild;
 
@@ -201,6 +204,8 @@ static IOSurfaceChild *recordChildToIOSurface(VkCommandBuffer cb, Panel *child, 
     }
 
     CmdEndRenderPass_fn(cb);
+    (*ioChild).lastPxW = w;
+    (*ioChild).lastPxH = h;
     return ioChild;
 }
 
@@ -212,6 +217,16 @@ static void renderNativeContent(Window *window, Panel *contentPanel, int winW, i
 
     size_t childCount = Panel_childCount(contentPanel);
     if (childCount == 0) return;
+
+    // LIVE RESIZE GATE: thread 0 is mid-drag. Layer frames keep moving
+    // (WindowServer composites pane/IOSurface layers at full rate) but the
+    // IOSurface children are NOT re-recorded here — re-recording at the live
+    // pixel size every drag frame costs work proportional to window size and
+    // glitches content (the "large window lags more" defect). The last
+    // rendered surface stretches with its CALayer; on settle the flag clears
+    // and the next tick re-records exactly once at the final size.
+    if (Window_isLiveResizing(window))
+        return;
 
     VkDevice dev = Vk_getDevice();
     VkQueue queue = Vk_getQueue();
@@ -258,6 +273,25 @@ static void renderNativeContent(Window *window, Panel *contentPanel, int winW, i
         const int pxH = (int)(rect.w * ky + 0.5f);
         if (pxW <= 0 || pxH <= 0 || pxW > 16384 || pxH > 16384) continue;
 
+        // Dirty-gate: a recorded surface that is already valid at the SAME pixel
+        // size needs no re-render this tick — the IOSurface is pixel-identical,
+        // so re-recording only burns GPU time and stalls on fences every tick.
+        // Dynamic children (or dirtied trees) re-record; static children keep cache.
+        if (!Panel_isTreeDirty(child)) {
+            IOSurfaceChild *cached = nullptr;
+            for (int ci = 0; ci < s_iosurfaceChildCount; ci++) {
+                if (s_iosurfaceChildren[ci].panel == child) {
+                    cached = &s_iosurfaceChildren[ci];
+                    break;
+                }
+            }
+            if (cached && (*cached).valid
+                && (*cached).lastPxW == pxW
+                && (*cached).lastPxH == pxH) {
+                continue;
+            }
+        }
+
         IOSurfaceChild *ioChild = recordChildToIOSurface(cb, child, surface, pxW, pxH);
         if (ioChild) {
             if (recordedCount < IOSURFACE_CHILD_MAX) {
@@ -293,15 +327,67 @@ static void renderNativeContent(Window *window, Panel *contentPanel, int winW, i
         for (int i = 0; i < recordedCount; i++) {
             VkIOSurface_export((*recorded[i]).surf);
             (*recorded[i]).valid = true;
+            Panel_clearTreeDirty((*recorded[i]).panel);
         }
     }
 }
 
 // // CORE FUNCTIONS
 
+// Pane render hook: called by VkPane_presentAll per CAMetalLayer pane, inside
+// that pane's OWN render pass (already begun, cleared, viewport at 0,0 = pane
+// size). Renders the pane's Panel handler, or the fallback spinning tri for a
+// scene with no handler. Mirror of the board's Darling_renderFrame scene path,
+// but with NO window-absolute transform — a pane owns its whole extent.
+static void Darling_layerRender(void *cmdBuffer, int w, int h, void *owner) {
+    Panel *child = (Panel*) owner;
+    if (!child || !cmdBuffer || w <= 0 || h <= 0)
+        return;
+
+    Panel_RenderFn handler = Panel_getRenderHandler(child);
+    if (handler) {
+        handler(child, nullptr, cmdBuffer, (float) w, (float) h, 0.0f, 0.0f, (float) w, (float) h);
+        return;
+    }
+
+    uint64_t childType = Memory_type(child);
+    bool isScene = (childType == TYPE_SCENE3D_SINGLETON || childType == TYPE_SCENE2D_SINGLETON
+                    || childType == TYPE_SCENE_SINGLETON);
+    if (!isScene)
+        return;
+
+    // Fallback scene content: the animated triangle, full pane.
+    COMPOSITOR_LOAD_DEVICE(CmdSetViewport);
+    COMPOSITOR_LOAD_DEVICE(CmdSetScissor);
+    COMPOSITOR_LOAD_DEVICE(CmdBindPipeline);
+    COMPOSITOR_LOAD_DEVICE(CmdPushConstants);
+    COMPOSITOR_LOAD_DEVICE(CmdDraw);
+
+    float uTime = (float)((double)(NanoTime_now() - Vk_getAnimStartNanos()) / 1e9);
+    CmdBindPipeline_fn((VkCommandBuffer) cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, Vk_getTriPipeline());
+    CmdPushConstants_fn((VkCommandBuffer) cmdBuffer, Vk_getTriLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, 4, &uTime);
+    VkViewport vp = { .x = 0.0f, .y = 0.0f, .width = (float) w, .height = (float) h, .minDepth = 0.0f, .maxDepth = 1.0f };
+    VkRect2D sc = { .offset = { 0, 0 }, .extent = { (uint32_t) w, (uint32_t) h } };
+    CmdSetViewport_fn((VkCommandBuffer) cmdBuffer, 0, 1, &vp);
+    CmdSetScissor_fn((VkCommandBuffer) cmdBuffer, 0, 1, &sc);
+    CmdDraw_fn((VkCommandBuffer) cmdBuffer, 3, 1, 0, 0);
+}
+
 void Darling_preFrame(Window *window, int drawW, int drawH, void *userdata) {
     (void)userdata;
     if (!window) return;
+
+    // LIVE RESIZE GATE (Rule 11.6): during a drag thread 0 owns ALL layer
+    // motion — setFrameSize's synchronous composite pins every pane to its
+    // selfAnchor per drag step. The present worker must NOT mutate container
+    // layout or composite layers concurrently: that race tears the anchor
+    // math and pane layers drift away from their pinned corners. The worker
+    // still presents the board + all pane chains (panes render through
+    // Darling_layerRender, never through preFrame), so the four scenes keep
+    // animating the whole drag. On settle the flag clears and preFrame
+    // resumes: one layout, one final re-record, one board rebuild.
+    if (Window_isLiveResizing(window))
+        return;
 
     int winW = Window_width(window);
     int winH = Window_height(window);
@@ -315,9 +401,20 @@ void Darling_preFrame(Window *window, int drawW, int drawH, void *userdata) {
     Panel *scenePanel = Window_getScenePanel(window);
 
     if (contentPanel) {
+        static int s_lastCompW = 0, s_lastCompH = 0;
+        static int s_lastCompChildren = -1;
+        int curChildCount = (int)Panel_childCount(contentPanel);
+        bool needsComposite = (winW != s_lastCompW || winH != s_lastCompH
+                               || curChildCount != s_lastCompChildren
+                               || Panel_isTreeDirty(contentPanel));
         Container_setSize(&(*contentPanel).base, (float)winW, (float)winH);
         renderNativeContent(window, contentPanel, winW, winH, kx, ky);
-        Window_compositeIOSurfaceChildren(window, contentPanel);
+        if (needsComposite) {
+            Window_compositeIOSurfaceChildren(window, contentPanel);
+            s_lastCompW = winW;
+            s_lastCompH = winH;
+            s_lastCompChildren = curChildCount;
+        }
     }
 
     if (scenePanel) {
@@ -366,9 +463,19 @@ void Darling_renderFrame(void *cmdBuffer, int drawW, int drawH, void *userdata) 
             if (rect.z <= 0.0f || rect.w <= 0.0f) continue;
 
             uint64_t cType = Memory_type(child);
-            if (cType != TYPE_SCENE3D_SINGLETON && cType != TYPE_SCENE2D_SINGLETON && cType != TYPE_SCENE_SINGLETON) {
+            bool childIsScene = (cType == TYPE_SCENE3D_SINGLETON || cType == TYPE_SCENE2D_SINGLETON
+                                 || cType == TYPE_SCENE_SINGLETON);
+            if (!childIsScene) {
                 continue;
             }
+
+            // Pane-backed scene (CAMetalLayer + own swapchain): renders into
+            // its OWN chain — the board must never stamp it (Rule 14).
+            extern void *PanelCocoa_fromPanel(void *panel);
+            extern bool PanelCocoa_isMetal(const void *pc);
+            void *panePc = PanelCocoa_fromPanel(child);
+            if (panePc && PanelCocoa_isMetal(panePc))
+                continue;
 
             float px = rect.x * kx;
             float py = rect.y * ky;
@@ -476,6 +583,9 @@ void Darling_initCompositor(Window *window) {
 
     Vk_setPreFrameRenderer(Darling_preFrame, window);
     Vk_setFrameRenderer(Darling_renderFrame, window);
+
+    // Pane hook: per-CAMetalLayer swapchain children render through here.
+    VkPane_setRenderer(Darling_layerRender);
 }
 
 void Darling_shutdownCompositor(void) {

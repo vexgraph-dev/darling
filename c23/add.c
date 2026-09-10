@@ -78,10 +78,10 @@ const char *Darling_kindName(uint32_t classId) {
         return "Container";
     if (classId == ID_CANVAS)
         return "Canvas";
-    if (classId == ID_LAYERED_PANEL)
-        return "LayeredPanel";
-    if (classId == ID_SECTION_PANEL)
-        return "SectionPanel";
+    if (classId == ID_LAYERED_CONTAINER)
+        return "LayeredContainer";
+    if (classId == ID_SECTION_CONTAINER)
+        return "SectionContainer";
     if (classId == ID_BUTTON)
         return "Button";
     if (classId == ID_SWITCH)

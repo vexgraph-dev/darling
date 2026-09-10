@@ -58,10 +58,10 @@ static inline void Scene_setLocation(Scene *s, float x, float y)
     { if (s) Panel_setLocation(&(*s).base, x, y); }
 static inline void Scene_setSize(Scene *s, float w, float h)
     { if (s) Panel_setSize(&(*s).base, w, h); }
-static inline void Scene_setParentAnchor(Scene *s, int anchor)
-    { if (s) Panel_setParentAnchor(&(*s).base, anchor); }
-static inline void Scene_setSelfAnchor(Scene *s, int anchor)
-    { if (s) Panel_setSelfAnchor(&(*s).base, anchor); }
+static inline void Scene_setAnchor(Scene *s, int anchor)
+    { if (s) Panel_setAnchor(&(*s).base, anchor); }
+static inline void Scene_setPivot(Scene *s, int pivot)
+    { if (s) Panel_setPivot(&(*s).base, pivot); }
 static inline void Scene_setBackgroundColor(Scene *s, uint32_t color) {
     if (s) Panel_setBackgroundColor(&(*s).base, color);
 }
@@ -70,10 +70,10 @@ static inline void Scene2D_setLocation(Scene2D *s, float x, float y)
     { if (s) Scene_setLocation(&(*s).base, x, y); }
 static inline void Scene2D_setSize(Scene2D *s, float w, float h)
     { if (s) Scene_setSize(&(*s).base, w, h); }
-static inline void Scene2D_setParentAnchor(Scene2D *s, int anchor)
-    { if (s) Scene_setParentAnchor(&(*s).base, anchor); }
-static inline void Scene2D_setSelfAnchor(Scene2D *s, int anchor)
-    { if (s) Scene_setSelfAnchor(&(*s).base, anchor); }
+static inline void Scene2D_setAnchor(Scene2D *s, int anchor)
+    { if (s) Scene_setAnchor(&(*s).base, anchor); }
+static inline void Scene2D_setPivot(Scene2D *s, int pivot)
+    { if (s) Scene_setPivot(&(*s).base, pivot); }
 static inline void Scene2D_setBackgroundColor(Scene2D *s, uint32_t color)
     { if (s) Scene_setBackgroundColor(&(*s).base, color); }
 
@@ -81,10 +81,10 @@ static inline void Scene3D_setLocation(Scene3D *s, float x, float y)
     { if (s) Scene_setLocation(&(*s).base, x, y); }
 static inline void Scene3D_setSize(Scene3D *s, float w, float h)
     { if (s) Scene_setSize(&(*s).base, w, h); }
-static inline void Scene3D_setParentAnchor(Scene3D *s, int anchor)
-    { if (s) Scene_setParentAnchor(&(*s).base, anchor); }
-static inline void Scene3D_setSelfAnchor(Scene3D *s, int anchor)
-    { if (s) Scene_setSelfAnchor(&(*s).base, anchor); }
+static inline void Scene3D_setAnchor(Scene3D *s, int anchor)
+    { if (s) Scene_setAnchor(&(*s).base, anchor); }
+static inline void Scene3D_setPivot(Scene3D *s, int pivot)
+    { if (s) Scene_setPivot(&(*s).base, pivot); }
 static inline void Scene3D_setBackgroundColor(Scene3D *s, uint32_t color)
     { if (s) Scene_setBackgroundColor(&(*s).base, color); }
 

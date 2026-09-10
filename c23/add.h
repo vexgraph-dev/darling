@@ -11,8 +11,8 @@
 #include "darling/picture/picture.h"
 #include "darling/label/rich_label.h"
 #include "darling/scene/scene.h"
-#include "darling/panel/layeredpanel.h"
-#include "darling/panel/sectionpanel.h"
+#include "darling/panel/layered_container.h"
+#include "darling/panel/section_container.h"
 #include "darling/button/button.h"
 #include "darling/button/switch.h"
 #include "darling/field/checkbox.h"
@@ -78,8 +78,8 @@ static inline Panel *Darling_asPanel_Scene3D(Scene3D *s) {
     return &(*m).base;
 }
 
-static inline Panel *Darling_asPanel_LayeredPanel(LayeredPanel *p) { return (Panel*) (void*) p; }
-static inline Panel *Darling_asPanel_SectionPanel(SectionPanel *p) { return (Panel*) (void*) p; }
+static inline Panel *Darling_asPanel_LayeredContainer(LayeredContainer *p) { return (Panel*) (void*) p; }
+static inline Panel *Darling_asPanel_SectionContainer(SectionContainer *p) { return (Panel*) (void*) p; }
 static inline Panel *Darling_asPanel_Button(Button *p) { return (Panel*) (void*) p; }
 static inline Panel *Darling_asPanel_Switch(Switch *p) { return (Panel*) (void*) p; }
 static inline Panel *Darling_asPanel_Checkbox(Checkbox *p) { return (Panel*) (void*) p; }
@@ -117,8 +117,8 @@ static inline Panel *Darling_asPanel_ColorDialog(ColorDialog *c) {
     Scene *: Darling_asPanel_Scene, \
     Scene2D *: Darling_asPanel_Scene2D, \
     Scene3D *: Darling_asPanel_Scene3D, \
-    LayeredPanel *: Darling_asPanel_LayeredPanel, \
-    SectionPanel *: Darling_asPanel_SectionPanel, \
+    LayeredContainer *: Darling_asPanel_LayeredContainer, \
+    SectionContainer *: Darling_asPanel_SectionContainer, \
     Button *: Darling_asPanel_Button, \
     Switch *: Darling_asPanel_Switch, \
     Checkbox *: Darling_asPanel_Checkbox, \
@@ -170,12 +170,12 @@ static inline void Darling_addScene3D(Panel *parent, Scene3D *child) {
     Darling_addAny(parent, (void*) child, ID_SCENE3D);
 }
 
-static inline void Darling_addLayeredPanel(Panel *parent, LayeredPanel *child) {
-    Darling_addAny(parent, (void*) child, ID_LAYERED_PANEL);
+static inline void Darling_addLayeredContainer(Panel *parent, LayeredContainer *child) {
+    Darling_addAny(parent, (void*) child, ID_LAYERED_CONTAINER);
 }
 
-static inline void Darling_addSectionPanel(Panel *parent, SectionPanel *child) {
-    Darling_addAny(parent, (void*) child, ID_SECTION_PANEL);
+static inline void Darling_addSectionContainer(Panel *parent, SectionContainer *child) {
+    Darling_addAny(parent, (void*) child, ID_SECTION_CONTAINER);
 }
 
 static inline void Darling_addButton(Panel *parent, Button *child) {
@@ -270,8 +270,8 @@ static inline void Darling_addColorDialog(Panel *parent, ColorDialog *child) {
     Scene *: ID_SCENE, \
     Scene2D *: ID_SCENE2D, \
     Scene3D *: ID_SCENE3D, \
-    LayeredPanel *: ID_LAYERED_PANEL, \
-    SectionPanel *: ID_SECTION_PANEL, \
+    LayeredContainer *: ID_LAYERED_CONTAINER, \
+    SectionContainer *: ID_SECTION_CONTAINER, \
     Button *: ID_BUTTON, \
     Switch *: ID_SWITCH, \
     Checkbox *: ID_CHECKBOX, \
@@ -309,8 +309,8 @@ const char *Darling_kindName(uint32_t classId);
     Scene *: Darling_addScene, \
     Scene2D *: Darling_addScene2D, \
     Scene3D *: Darling_addScene3D, \
-    LayeredPanel *: Darling_addLayeredPanel, \
-    SectionPanel *: Darling_addSectionPanel, \
+    LayeredContainer *: Darling_addLayeredContainer, \
+    SectionContainer *: Darling_addSectionContainer, \
     Button *: Darling_addButton, \
     Switch *: Darling_addSwitch, \
     Checkbox *: Darling_addCheckbox, \

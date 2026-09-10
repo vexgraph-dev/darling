@@ -36,6 +36,7 @@ typedef struct Panel {
     void *filters;          // render-graph slot (@Draft placeholder)
     void *image;            // payload slot (shared through views)
     Panel_RenderFn renderHandler; // draw override; nullptr = renderer default
+    void *renderUserdata;   // opaque arg handed back to renderHandler
     struct Panel *source;   // canonical panel this view proxies; nullptr = owns
     struct Panel *parent;   // nullptr = root
     List *children;
@@ -64,6 +65,11 @@ void Panel_setBackgroundColorRGBA(Panel *p, uint8_t r, uint8_t g, uint8_t b, uin
 Panel_RenderFn Panel_getRenderHandler(const Panel *p);
 void Panel_setRenderHandler(Panel *p, Panel_RenderFn fn);
 
+// Opaque per-instance state for the render handler (e.g. PaneAnim for
+// CAMetalLayer pane scenes). Never interpreted by the panel itself.
+void *Panel_getRenderUserdata(const Panel *p);
+void Panel_setRenderUserdata(Panel *p, void *userdata);
+
 // Layout facade — the delegation chain ends here. Every accessor below is a
 // one-hop static inline to the embedded Container, so call sites never write
 // &(*panel).base for common edits. Subclass levels re-export the same names
@@ -78,10 +84,10 @@ static inline void Panel_setMinSize(Panel *p, float w, float h)
     { if (p) Container_setMinSize(&(*p).base, w, h); }
 static inline void Panel_setMaxSize(Panel *p, float w, float h)
     { if (p) Container_setMaxSize(&(*p).base, w, h); }
-static inline void Panel_setParentAnchor(Panel *p, int anchor)
-    { if (p) Container_setParentAnchor(&(*p).base, anchor); }
-static inline void Panel_setSelfAnchor(Panel *p, int anchor)
-    { if (p) Container_setSelfAnchor(&(*p).base, anchor); }
+static inline void Panel_setAnchor(Panel *p, int anchor)
+    { if (p) Container_setAnchor(&(*p).base, anchor); }
+static inline void Panel_setPivot(Panel *p, int pivot)
+    { if (p) Container_setPivot(&(*p).base, pivot); }
 static inline void Panel_setVisible(Panel *p, bool visible)
     { if (p) Container_setVisible(&(*p).base, visible); }
 static inline void Panel_setOpacity(Panel *p, float opacity)

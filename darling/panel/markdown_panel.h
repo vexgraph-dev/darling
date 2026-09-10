@@ -6,7 +6,7 @@
 #include <stdint.h>
 
 #include "c23/constructor.h"
-#include "darling/panel/list_panel.h"
+#include "darling/panel/list_container.h"
 #include "darling/panel/panel.h"
 #include "font/font.h"
 #include "oop/type.h"
@@ -16,7 +16,7 @@
 //
 // v1 syntax: #/##/### headings, -/* bullets, `inline code`, fenced blocks,
 // **bold**/*italic* via RichText styles. Rebuild is detach-all + re-layout
-// (document panels are cold paths). Rows live in a ListPanel (vertical,
+// (document panels are cold paths). Rows live in a ListContainer (vertical,
 // spacing mirrors rowSpacing); getRows returns its Panel base.
 
 // Central registry owns these once landed; the guard keeps this shell
@@ -33,7 +33,7 @@ typedef struct MarkdownPanel {
     uint8_t *textBlock;
     Font *font;
     uint32_t codeBackground;
-    ListPanel *rows;
+    ListContainer *rows;
     float rowSpacing;
     struct MarkdownRowSlot *slots;
     size_t rowCount;

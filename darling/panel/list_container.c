@@ -1,4 +1,4 @@
-#include "darling/panel/list_panel.h"
+#include "darling/panel/list_container.h"
 
 #include "annotation/overview.h"
 #include "darling/panel/panel.h"
@@ -13,7 +13,7 @@
 ;;OVERVIEW
 /**
  * ============================================================================
- * CLASS: ListPanel (embeds Panel)
+ * CLASS: ListContainer (embeds Panel)
  * LEVEL: L2 — Behavior (indexed panel-stack layout behavior API)
  * ============================================================================
  * A vertical (or horizontal) stack owning ordered children where index IS
@@ -25,7 +25,7 @@
  * keeps its size and the list wraps the widest child, unless fillCross
  * stretches children to the list's own cross size.
  *
- * STRUCT FIELDS (Mirroring darling/panel/list_panel.h):
+ * STRUCT FIELDS (Mirroring darling/panel/list_container.h):
  * ----------------------------------------------------------------------------
  *   Panel base;          // Inherited layout/tree/background state; children
  *                        // live in (*base).children via Panel_* tree API
@@ -37,36 +37,36 @@
  * FUNCTION REGISTRY:
  * ----------------------------------------------------------------------------
  * Constructors:
- *   - ListPanel_0(void)
- *   - ListPanel_1(direction)
+ *   - ListContainer_0(void)
+ *   - ListContainer_1(direction)
  *
  * Core Functions:
- *   - ListPanel_add(lp, child)
- *   - ListPanel_insert(lp, index, child)
- *   - ListPanel_get(lp, index)
- *   - ListPanel_remove(lp, index)
- *   - ListPanel_count(lp)
- *   - ListPanel_layout(lp)
+ *   - ListContainer_add(lp, child)
+ *   - ListContainer_insert(lp, index, child)
+ *   - ListContainer_get(lp, index)
+ *   - ListContainer_remove(lp, index)
+ *   - ListContainer_count(lp)
+ *   - ListContainer_layout(lp)
  *
  * Setters:
- *   - ListPanel_setLocation(lp, x, y)
- *   - ListPanel_setSize(lp, w, h)
- *   - ListPanel_setSpacing(lp, spacing)
- *   - ListPanel_setDirection(lp, direction)
- *   - ListPanel_setFillCross(lp, fill)
+ *   - ListContainer_setLocation(lp, x, y)
+ *   - ListContainer_setSize(lp, w, h)
+ *   - ListContainer_setSpacing(lp, spacing)
+ *   - ListContainer_setDirection(lp, direction)
+ *   - ListContainer_setFillCross(lp, fill)
  *
  * Getters:
- *   - ListPanel_getSpacing(lp)
- *   - ListPanel_getDirection(lp)
- *   - ListPanel_isFillCross(lp)
+ *   - ListContainer_getSpacing(lp)
+ *   - ListContainer_getDirection(lp)
+ *   - ListContainer_isFillCross(lp)
  * ============================================================================
  */
 
 // CONSTRUCTORS
 // ============================================================================
 
-ListPanel *ListPanel_0(void) {
-    ListPanel *lp = (ListPanel*) Memory_alloc(TYPE_LIST_PANEL_SINGLETON, sizeof(ListPanel));
+ListContainer *ListContainer_0(void) {
+    ListContainer *lp = (ListContainer*) Memory_alloc(TYPE_LIST_PANEL_SINGLETON, sizeof(ListContainer));
     if (!lp)
         return nullptr;
     Panel *b = Panel_0();
@@ -82,17 +82,17 @@ ListPanel *ListPanel_0(void) {
     return lp;
 }
 
-ListPanel *ListPanel_1(int32_t direction) {
-    ListPanel *lp = ListPanel_0();
+ListContainer *ListContainer_1(int32_t direction) {
+    ListContainer *lp = ListContainer_0();
     if (lp)
-        ListPanel_setDirection(lp, direction);
+        ListContainer_setDirection(lp, direction);
     return lp;
 }
 
 // CORE FUNCTIONS
 // ============================================================================
 
-static void markDirty(ListPanel *lp) {
+static void markDirty(ListContainer *lp) {
     if (!lp)
         return;
     Panel *b = &(*lp).base;
@@ -154,7 +154,7 @@ static void layoutHorizontal(Panel *b, Container *c, size_t n, float spacing, bo
         Container_setHeight(c, maxH);
 }
 
-void ListPanel_layout(ListPanel *lp) {
+void ListContainer_layout(ListContainer *lp) {
     if (!lp)
         return;
     Panel *b = &(*lp).base;
@@ -173,17 +173,17 @@ void ListPanel_layout(ListPanel *lp) {
     Container_markDirty(c);
 }
 
-void ListPanel_add(ListPanel *lp, Panel *child) {
+void ListContainer_add(ListContainer *lp, Panel *child) {
     if (!lp || !child)
         return;
     Panel *b = &(*lp).base;
     if (child == b)
         return;
     Panel_addContainer(b, child);
-    ListPanel_layout(lp);
+    ListContainer_layout(lp);
 }
 
-void ListPanel_insert(ListPanel *lp, int32_t index, Panel *child) {
+void ListContainer_insert(ListContainer *lp, int32_t index, Panel *child) {
     if (!lp || !child)
         return;
     Panel *b = &(*lp).base;
@@ -208,17 +208,17 @@ void ListPanel_insert(ListPanel *lp, int32_t index, Panel *child) {
             List_set(kids, at, (uint64_t)(uintptr_t) child);
         }
     }
-    ListPanel_layout(lp);
+    ListContainer_layout(lp);
 }
 
-Panel *ListPanel_get(const ListPanel *lp, int32_t index) {
+Panel *ListContainer_get(const ListContainer *lp, int32_t index) {
     if (!lp || index < 0)
         return nullptr;
     const Panel *b = &(*lp).base;
     return Panel_getChild(b, (size_t) index);
 }
 
-bool ListPanel_remove(ListPanel *lp, int32_t index) {
+bool ListContainer_remove(ListContainer *lp, int32_t index) {
     if (!lp || index < 0)
         return false;
     Panel *b = &(*lp).base;
@@ -226,11 +226,11 @@ bool ListPanel_remove(ListPanel *lp, int32_t index) {
     if (!kid)
         return false;
     bool out = Panel_removeChild(b, kid);
-    ListPanel_layout(lp);
+    ListContainer_layout(lp);
     return out;
 }
 
-size_t ListPanel_count(const ListPanel *lp) {
+size_t ListContainer_count(const ListContainer *lp) {
     if (!lp)
         return 0;
     const Panel *b = &(*lp).base;
@@ -240,45 +240,45 @@ size_t ListPanel_count(const ListPanel *lp) {
 // SETTERS
 // ============================================================================
 
-void ListPanel_setSpacing(ListPanel *lp, float spacing) {
+void ListContainer_setSpacing(ListContainer *lp, float spacing) {
     if (!lp)
         return;
     if (spacing < 0.0f)
         spacing = 0.0f;
     (*lp).spacing = spacing;
-    ListPanel_layout(lp);
+    ListContainer_layout(lp);
     markDirty(lp);
 }
 
-void ListPanel_setDirection(ListPanel *lp, int32_t direction) {
+void ListContainer_setDirection(ListContainer *lp, int32_t direction) {
     if (!lp)
         return;
     if (direction != LIST_PANEL_VERTICAL && direction != LIST_PANEL_HORIZONTAL)
         return;
     (*lp).direction = direction;
-    ListPanel_layout(lp);
+    ListContainer_layout(lp);
     markDirty(lp);
 }
 
-void ListPanel_setFillCross(ListPanel *lp, bool fill) {
+void ListContainer_setFillCross(ListContainer *lp, bool fill) {
     if (!lp)
         return;
     (*lp).fillCross = fill;
-    ListPanel_layout(lp);
+    ListContainer_layout(lp);
     markDirty(lp);
 }
 
 // GETTERS
 // ============================================================================
 
-float ListPanel_getSpacing(const ListPanel *lp) {
+float ListContainer_getSpacing(const ListContainer *lp) {
     return lp ? (*lp).spacing : 0.0f;
 }
 
-int32_t ListPanel_getDirection(const ListPanel *lp) {
+int32_t ListContainer_getDirection(const ListContainer *lp) {
     return lp ? (*lp).direction : LIST_PANEL_VERTICAL;
 }
 
-bool ListPanel_isFillCross(const ListPanel *lp) {
+bool ListContainer_isFillCross(const ListContainer *lp) {
     return lp ? (*lp).fillCross : false;
 }

@@ -22,6 +22,7 @@
  *   void *filters;                 // Render-graph slot (@Draft placeholder, not yet wired)
  *   void *image;                   // Shared payload pointer (aliased through views)
  *   Panel_RenderFn renderHandler;  // Draw override (@Override slot); nullptr = solid quad
+ *   void *renderUserdata;          // Opaque handler state; never interpreted
  *   struct Panel *source;          // Canonical panel this view proxies; nullptr = owns data
  *   struct Panel *parent;          // Tree parent; nullptr = root
  *   List *children;                // Owned child panels (List of Panel*)
@@ -46,12 +47,13 @@
  *   - Panel_setBackgroundColor(p, color)
  *   - Panel_setBackgroundColorRGBA(p, r, g, b, a)
  *   - Panel_setRenderHandler(p, fn)
+ *   - Panel_setRenderUserdata(p, userdata)
  *   - Panel_setLocation(p, x, y)
  *   - Panel_setSize(p, w, h)
  *   - Panel_setMinSize(p, w, h)
  *   - Panel_setMaxSize(p, w, h)
- *   - Panel_setParentAnchor(p, anchor)
- *   - Panel_setSelfAnchor(p, anchor)
+ *   - Panel_setAnchor(p, anchor)
+ *   - Panel_setPivot(p, pivot)
  *   - Panel_setVisible(p, visible)
  *   - Panel_setZ(p, z)
  *   - Panel_setImage(p, image)
@@ -61,6 +63,7 @@
  * Getters:
  *   - Panel_getBackgroundColor(p)
  *   - Panel_getRenderHandler(p)
+ *   - Panel_getRenderUserdata(p)
  *   - Panel_isVisible(p)
  *   - Panel_getImage(p)
  *   - Panel_getFilters(p)
@@ -134,6 +137,18 @@ void Panel_setRenderHandler(Panel *p, Panel_RenderFn fn) {
         return;
     (*p).renderHandler = fn;
     Container_markDirty(&(*p).base);
+}
+
+// Opaque handler state (e.g. per-pane animation structs). Pure slot — never
+// interpreted, never copied by views (payload aliasing stops at handler data).
+void *Panel_getRenderUserdata(const Panel *p) {
+    return p ? (*p).renderUserdata : nullptr;
+}
+
+void Panel_setRenderUserdata(Panel *p, void *userdata) {
+    if (!p)
+        return;
+    (*p).renderUserdata = userdata;
 }
 
 void Panel_setBackgroundColorAndMark(Panel *p, uint32_t color) {
@@ -290,7 +305,7 @@ Panel *Panel_add(Panel *parent, const Panel *node) {
     (*cb).h = (*nb).h;
     (*cb).scaleX = (*nb).scaleX;
     (*cb).scaleY = (*nb).scaleY;
-    (*cb).anchors = (*nb).anchors;
+    (*cb).anchor = (*nb).anchor;
     (*cb).pivot = (*nb).pivot;
     (*cb).z = (*nb).z;
     (*cb).visible = (*nb).visible;
@@ -301,6 +316,8 @@ Panel *Panel_add(Panel *parent, const Panel *node) {
     (*copy).color = (*node).color;
     // behavior travels with structure: a view renders exactly like its source
     (*copy).renderHandler = (*node).renderHandler;
+    // handler state aliases like a payload (opaque, shared through the view)
+    (*copy).renderUserdata = (*node).renderUserdata;
 
     // payloads alias through the source slot (read/write-through above)
     (*copy).source = (Panel*) node;

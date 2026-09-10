@@ -48,10 +48,10 @@ static inline void VideoPanel_setLocation(VideoPanel *v, float x, float y)
     { if (v) Panel_setLocation(&(*v).base, x, y); }
 static inline void VideoPanel_setSize(VideoPanel *v, float w, float h)
     { if (v) Panel_setSize(&(*v).base, w, h); }
-static inline void VideoPanel_setParentAnchor(VideoPanel *v, int anchor)
-    { if (v) Panel_setParentAnchor(&(*v).base, anchor); }
-static inline void VideoPanel_setSelfAnchor(VideoPanel *v, int anchor)
-    { if (v) Panel_setSelfAnchor(&(*v).base, anchor); }
+static inline void VideoPanel_setAnchor(VideoPanel *v, int anchor)
+    { if (v) Panel_setAnchor(&(*v).base, anchor); }
+static inline void VideoPanel_setPivot(VideoPanel *v, int pivot)
+    { if (v) Panel_setPivot(&(*v).base, pivot); }
 static inline void VideoPanel_setBackgroundColor(VideoPanel *v, uint32_t color)
     { if (v) Panel_setBackgroundColor(&(*v).base, color); }
 

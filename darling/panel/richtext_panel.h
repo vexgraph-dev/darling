@@ -15,7 +15,7 @@
 //
 // The source is aliased, never owned: setSource re-runs RichText_layout on
 // the caller's model (relayout-on-attach) and resizes the panel height to
-// the laid-out content height. Pair with a ScrollPanel via contentHeight.
+// the laid-out content height. Pair with a ScrollContainer via contentHeight.
 
 // Central registry owns these once landed; the guard keeps this shell
 // compiling standalone until then.

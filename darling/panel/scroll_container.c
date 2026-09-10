@@ -1,4 +1,4 @@
-#include "darling/panel/scroll_panel.h"
+#include "darling/panel/scroll_container.h"
 
 #include "darling/field/scrollbar.h"
 #include "darling/panel/panel.h"
@@ -11,7 +11,7 @@
 ;;OVERVIEW
 /**
  * ============================================================================
- * CLASS: ScrollPanel (embeds Panel)
+ * CLASS: ScrollContainer (embeds Panel)
  * LEVEL: L2 — Behavior (clipped viewport behavior API)
  * ============================================================================
  * Viewport over an oversized content panel with start/end offsets, inset
@@ -42,10 +42,10 @@
  * (the vk_test stack), all moving without touching a pixel. That is why
  * the bar lives at the right: it is a layer pinned to an edge, not a
  * painted rect.
- * Hide it with ScrollPanel_scrollbar_setVisible when it gets in the way —
+ * Hide it with ScrollContainer_scrollbar_setVisible when it gets in the way —
  * touch readers, fullscreen galleries, game logs, auto-hiding overlays —
  * and the offsets keep working exactly the same with no thumb on screen.
- * Swap it with ScrollPanel_scrollbar_setBar (detach-only, sync survives).
+ * Swap it with ScrollContainer_scrollbar_setBar (detach-only, sync survives).
  * The bar never owns the offset; hiding never disables scrolling.
  *
  * FEEL (touchscreen physics):
@@ -77,15 +77,15 @@
  * CONTENT-PANEL PART (modify the panel through here):
  * ----------------------------------------------------------------------------
  * A C purist would write content->field and pierce the struct. Here the
- * ScrollPanel owns the content relationship, so edits go through the
- * ScrollPanel_panel_* forwarders: panel_setSize, panel_setBackgroundColor,
+ * ScrollContainer owns the content relationship, so edits go through the
+ * ScrollContainer_panel_* forwarders: panel_setSize, panel_setBackgroundColor,
  * panel_setRadius (+symmetric getters). They no-op on empty viewports and
  * re-clamp the offset after resizes so you never strand the view past the
  * new content end. Anything finer (margins, anchors) stays on Panel itself.
  *
- * STRUCT FIELDS (Mirroring darling/panel/scroll_panel.h — same part banners):
+ * STRUCT FIELDS (Mirroring darling/panel/scroll_container.h — same part banners):
  * ----------------------------------------------------------------------------
- *   --- ScrollPanel core (owner fields) ---
+ *   --- ScrollContainer core (owner fields) ---
  *   Panel base;                  // Inherited layout, bounds, hierarchy state
  *   Panel *content;              // Viewport child (via panel_*); null = empty
  *   float offsetX;               // Horizontal scroll offset into content
@@ -105,68 +105,68 @@
  * FUNCTION REGISTRY:
  * ----------------------------------------------------------------------------
  * Constructors:
- *   - ScrollPanel_2(viewW, viewH)
+ *   - ScrollContainer_2(viewW, viewH)
  *
  * Core Functions:
- *   - ScrollPanel_setContent(sp, content)
- *   - ScrollPanel_setOffset(sp, x, y)
- *   - ScrollPanel_setViewportSize(sp, w, h)
- *   - ScrollPanel_syncFromBar(sp)
- *   - ScrollPanel_syncToBar(sp)
+ *   - ScrollContainer_setContent(sp, content)
+ *   - ScrollContainer_setOffset(sp, x, y)
+ *   - ScrollContainer_setViewportSize(sp, w, h)
+ *   - ScrollContainer_syncFromBar(sp)
+ *   - ScrollContainer_syncToBar(sp)
  *
  * Setters:
- *   - ScrollPanel_setStartInset(sp, inset)
- *   - ScrollPanel_setEndInset(sp, inset)
+ *   - ScrollContainer_setStartInset(sp, inset)
+ *   - ScrollContainer_setEndInset(sp, inset)
  *
  * Scrollbar part:
- *   - ScrollPanel_scrollbar_setVisible(sp, visible)
- *   - ScrollPanel_scrollbar_setBar(sp, bar)   // replace the view, keep sync
+ *   - ScrollContainer_scrollbar_setVisible(sp, visible)
+ *   - ScrollContainer_scrollbar_setBar(sp, bar)   // replace the view, keep sync
  *
  * Feel part:
- *   - ScrollPanel_setSlippery(sp, slippery)
- *   - ScrollPanel_setOverscroll(sp, px)
- *   - ScrollPanel_fling(sp, vx, vy)
- *   - ScrollPanel_stop(sp)
- *   - ScrollPanel_tick(sp, dt)
+ *   - ScrollContainer_setSlippery(sp, slippery)
+ *   - ScrollContainer_setOverscroll(sp, px)
+ *   - ScrollContainer_fling(sp, vx, vy)
+ *   - ScrollContainer_stop(sp)
+ *   - ScrollContainer_tick(sp, dt)
  *
  * Direction part:
- *   - ScrollPanel_setNatural(sp, natural)
- *   - ScrollPanel_scrollBy(sp, dx, dy)
+ *   - ScrollContainer_setNatural(sp, natural)
+ *   - ScrollContainer_scrollBy(sp, dx, dy)
  *
  * Content-panel part:
- *   - ScrollPanel_panel_setSize(sp, w, h)
- *   - ScrollPanel_panel_setBackgroundColor(sp, color)
- *   - ScrollPanel_panel_setRadius(sp, radius)
+ *   - ScrollContainer_panel_setSize(sp, w, h)
+ *   - ScrollContainer_panel_setBackgroundColor(sp, color)
+ *   - ScrollContainer_panel_setRadius(sp, radius)
  *
  * Layer part:
- *   - ScrollPanel_childFrame(sp, child, winW, winH, outX, outY, outW, outH)
+ *   - ScrollContainer_childFrame(sp, child, winW, winH, outX, outY, outW, outH)
  *
  * Getters:
- *   - ScrollPanel_getContent(sp)
- *   - ScrollPanel_getOffset(sp, outX, outY)
- *   - ScrollPanel_getStartInset(sp)
- *   - ScrollPanel_getEndInset(sp)
- *   - ScrollPanel_getBar(sp)
- *   - ScrollPanel_scrollbar_isVisible(sp)
- *   - ScrollPanel_getSlippery(sp)
- *   - ScrollPanel_getOverscroll(sp)
- *   - ScrollPanel_getVelocity(sp, outVX, outVY)
- *   - ScrollPanel_isScrolling(sp)
- *   - ScrollPanel_isOverscrolled(sp)
- *   - ScrollPanel_isNatural(sp)
- *   - ScrollPanel_panel_getSize(sp, outW, outH)
- *   - ScrollPanel_panel_getBackgroundColor(sp)
- *   - ScrollPanel_panel_getRadius(sp)
+ *   - ScrollContainer_getContent(sp)
+ *   - ScrollContainer_getOffset(sp, outX, outY)
+ *   - ScrollContainer_getStartInset(sp)
+ *   - ScrollContainer_getEndInset(sp)
+ *   - ScrollContainer_getBar(sp)
+ *   - ScrollContainer_scrollbar_isVisible(sp)
+ *   - ScrollContainer_getSlippery(sp)
+ *   - ScrollContainer_getOverscroll(sp)
+ *   - ScrollContainer_getVelocity(sp, outVX, outVY)
+ *   - ScrollContainer_isScrolling(sp)
+ *   - ScrollContainer_isOverscrolled(sp)
+ *   - ScrollContainer_isNatural(sp)
+ *   - ScrollContainer_panel_getSize(sp, outW, outH)
+ *   - ScrollContainer_panel_getBackgroundColor(sp)
+ *   - ScrollContainer_panel_getRadius(sp)
  * ============================================================================
  */
 
 // CONSTRUCTORS
 
-static void layoutBar(ScrollPanel *sp);
-static void raiseBar(ScrollPanel *sp);
+static void layoutBar(ScrollContainer *sp);
+static void raiseBar(ScrollContainer *sp);
 
-ScrollPanel *ScrollPanel_2(float viewW, float viewH) {
-    ScrollPanel *sp = (ScrollPanel*) Memory_alloc(TYPE_SCROLL_PANEL_SINGLETON, sizeof(ScrollPanel));
+ScrollContainer *ScrollContainer_2(float viewW, float viewH) {
+    ScrollContainer *sp = (ScrollContainer*) Memory_alloc(TYPE_SCROLL_PANEL_SINGLETON, sizeof(ScrollContainer));
     if (!sp)
         return nullptr;
     Panel *b = Panel_0();
@@ -214,7 +214,7 @@ static float pinOffset(float value, float lo, float hi) {
     return value;
 }
 
-static void markDirty(ScrollPanel *sp) {
+static void markDirty(ScrollContainer *sp) {
     if (!sp)
         return;
     Panel *b = &(*sp).base;
@@ -231,15 +231,15 @@ static void markDirty(ScrollPanel *sp) {
 // every content/bar/sync pass.
 #define SCROLLBAR_THICKNESS 10.0f
 
-static void layoutBar(ScrollPanel *sp) {
+static void layoutBar(ScrollContainer *sp) {
     if (!sp || !(*sp).bar)
         return;
     Panel *self = &(*sp).base;
     float vh = Container_getHeight(&(*self).base);
     Panel *thumb = &(*(*sp).bar).base;
     Container *bc = &(*thumb).base;
-    Container_setParentAnchor(bc, CONTAINER_PARENT_ANCHOR_TOP_RIGHT);
-    Container_setSelfAnchor(bc, CONTAINER_SELF_ANCHOR_TOP_RIGHT);
+    Container_setAnchor(bc, CONTAINER_ANCHOR_TOP_RIGHT);
+    Container_setPivot(bc, CONTAINER_PIVOT_TOP_RIGHT);
     Container_setLocation(bc, 0.0f, 0.0f);
     Container_setMaxSize(bc, SCROLLBAR_THICKNESS, vh);
     Container_setSize(bc, SCROLLBAR_THICKNESS, vh);
@@ -250,7 +250,7 @@ static void layoutBar(ScrollPanel *sp) {
 // front), so the scrollbar must be the LAST child — above the content,
 // below nothing. Re-assert after every structural pass; the guard makes
 // repeat runs free.
-static void raiseBar(ScrollPanel *sp) {
+static void raiseBar(ScrollContainer *sp) {
     if (!sp || !(*sp).bar || !(*sp).content)
         return;
     Panel *self = &(*sp).base;
@@ -262,7 +262,7 @@ static void raiseBar(ScrollPanel *sp) {
         Panel_addContainer(self, thumb);
 }
 
-static void offsetBounds(const ScrollPanel *sp, float *loX, float *hiX, float *loY, float *hiY) {
+static void offsetBounds(const ScrollContainer *sp, float *loX, float *hiX, float *loY, float *hiY) {
     float start = (*sp).startInset;
     float end = (*sp).endInset;
     const Panel *b = &(*sp).base;
@@ -295,7 +295,7 @@ static void offsetBounds(const ScrollPanel *sp, float *loX, float *hiX, float *l
         (*hiY) = hy;
 }
 
-void ScrollPanel_setContent(ScrollPanel *sp, Panel *content) {
+void ScrollContainer_setContent(ScrollContainer *sp, Panel *content) {
     if (!sp)
         return;
     Panel *old = (*sp).content;
@@ -310,10 +310,10 @@ void ScrollPanel_setContent(ScrollPanel *sp, Panel *content) {
         (*sp).content = content;
     }
     layoutBar(sp);
-    ScrollPanel_setOffset(sp, (*sp).offsetX, (*sp).offsetY);
+    ScrollContainer_setOffset(sp, (*sp).offsetX, (*sp).offsetY);
 }
 
-void ScrollPanel_setViewportSize(ScrollPanel *sp, float w, float h) {
+void ScrollContainer_setViewportSize(ScrollContainer *sp, float w, float h) {
     if (!sp)
         return;
     Panel *self = &(*sp).base;
@@ -323,10 +323,10 @@ void ScrollPanel_setViewportSize(ScrollPanel *sp, float w, float h) {
     Container_setMaxSize(vc, w, h);
     Container_setSize(vc, w, h);
     layoutBar(sp); // re-dock: same 10px, new right edge, full new height
-    ScrollPanel_setOffset(sp, (*sp).offsetX, (*sp).offsetY); // re-clamp
+    ScrollContainer_setOffset(sp, (*sp).offsetX, (*sp).offsetY); // re-clamp
 }
 
-void ScrollPanel_setOffset(ScrollPanel *sp, float x, float y) {
+void ScrollContainer_setOffset(ScrollContainer *sp, float x, float y) {
     if (!sp)
         return;
     float loX = 0.0f;
@@ -338,10 +338,10 @@ void ScrollPanel_setOffset(ScrollPanel *sp, float x, float y) {
     (*sp).offsetX = pinOffset(x, loX - over, hiX + over);
     (*sp).offsetY = pinOffset(y, loY - over, hiY + over);
     markDirty(sp);
-    ScrollPanel_syncToBar(sp);
+    ScrollContainer_syncToBar(sp);
 }
 
-void ScrollPanel_syncFromBar(ScrollPanel *sp) {
+void ScrollContainer_syncFromBar(ScrollContainer *sp) {
     if (!sp)
         return;
     ScrollBar *bar = (*sp).bar;
@@ -362,7 +362,7 @@ void ScrollPanel_syncFromBar(ScrollPanel *sp) {
     markDirty(sp);
 }
 
-void ScrollPanel_syncToBar(ScrollPanel *sp) {
+void ScrollContainer_syncToBar(ScrollContainer *sp) {
     if (!sp)
         return;
     ScrollBar *bar = (*sp).bar;
@@ -384,7 +384,7 @@ void ScrollPanel_syncToBar(ScrollPanel *sp) {
 
 // SCROLLBAR PART
 
-static void applyBarVisible(ScrollPanel *sp) {
+static void applyBarVisible(ScrollContainer *sp) {
     if (!sp || !(*sp).bar)
         return;
     Panel *thumb = &(*(*sp).bar).base;
@@ -392,7 +392,7 @@ static void applyBarVisible(ScrollPanel *sp) {
     Container_setVisible(c, (*sp).barVisible);
 }
 
-void ScrollPanel_scrollbar_setVisible(ScrollPanel *sp, bool visible) {
+void ScrollContainer_scrollbar_setVisible(ScrollContainer *sp, bool visible) {
     if (!sp)
         return;
     (*sp).barVisible = visible;
@@ -400,7 +400,7 @@ void ScrollPanel_scrollbar_setVisible(ScrollPanel *sp, bool visible) {
     markDirty(sp);
 }
 
-void ScrollPanel_scrollbar_setBar(ScrollPanel *sp, ScrollBar *bar) {
+void ScrollContainer_scrollbar_setBar(ScrollContainer *sp, ScrollBar *bar) {
     if (!sp || !bar || (*sp).bar == bar)
         return;
     // Borrowed view, detach-only (Rule 29): old bar is detached, never
@@ -413,7 +413,7 @@ void ScrollPanel_scrollbar_setBar(ScrollPanel *sp, ScrollBar *bar) {
     (*sp).bar = bar;
     applyBarVisible(sp);
     layoutBar(sp);
-    ScrollPanel_syncToBar(sp);
+    ScrollContainer_syncToBar(sp);
     markDirty(sp);
 }
 
@@ -425,7 +425,7 @@ static float feelFriction(float slippery) {
     return 12.0f + (0.8f - 12.0f) * slippery;
 }
 
-void ScrollPanel_setSlippery(ScrollPanel *sp, float slippery) {
+void ScrollContainer_setSlippery(ScrollContainer *sp, float slippery) {
     if (!sp)
         return;
     if (slippery < 0.0f)
@@ -435,14 +435,14 @@ void ScrollPanel_setSlippery(ScrollPanel *sp, float slippery) {
     (*sp).slippery = slippery;
 }
 
-void ScrollPanel_setOverscroll(ScrollPanel *sp, float px) {
+void ScrollContainer_setOverscroll(ScrollContainer *sp, float px) {
     if (!sp)
         return;
     (*sp).overscroll = px > 0.0f ? px : 0.0f;
-    ScrollPanel_setOffset(sp, (*sp).offsetX, (*sp).offsetY);
+    ScrollContainer_setOffset(sp, (*sp).offsetX, (*sp).offsetY);
 }
 
-void ScrollPanel_fling(ScrollPanel *sp, float vx, float vy) {
+void ScrollContainer_fling(ScrollContainer *sp, float vx, float vy) {
     if (!sp)
         return;
     (*sp).velX = vx;
@@ -450,7 +450,7 @@ void ScrollPanel_fling(ScrollPanel *sp, float vx, float vy) {
     markDirty(sp);
 }
 
-void ScrollPanel_stop(ScrollPanel *sp) {
+void ScrollContainer_stop(ScrollContainer *sp) {
     if (!sp)
         return;
     (*sp).velX = 0.0f;
@@ -464,21 +464,21 @@ void ScrollPanel_stop(ScrollPanel *sp) {
 // way a hand on paper behaves. false restores the legacy inverted mapping
 // for rigs that disagree. If fingers and content ever disagree, this one
 // flag is the entire argument — never hand-negate at the call site.
-void ScrollPanel_setNatural(ScrollPanel *sp, bool natural) {
+void ScrollContainer_setNatural(ScrollContainer *sp, bool natural) {
     if (!sp)
         return;
     (*sp).natural = natural;
 }
 
-void ScrollPanel_scrollBy(ScrollPanel *sp, float dx, float dy) {
+void ScrollContainer_scrollBy(ScrollContainer *sp, float dx, float dy) {
     if (!sp)
         return;
     float ox = 0.0f, oy = 0.0f;
-    ScrollPanel_getOffset(sp, &ox, &oy);
+    ScrollContainer_getOffset(sp, &ox, &oy);
     if ((*sp).natural)
-        ScrollPanel_setOffset(sp, ox + dx, oy - dy);
+        ScrollContainer_setOffset(sp, ox + dx, oy - dy);
     else
-        ScrollPanel_setOffset(sp, ox - dx, oy + dy);
+        ScrollContainer_setOffset(sp, ox - dx, oy + dy);
 }
 
 static float tickAxis(float off, float *vel, float lo, float hi, float over, float friction, double dt) {
@@ -513,7 +513,7 @@ static float tickAxis(float off, float *vel, float lo, float hi, float over, flo
     return off;
 }
 
-void ScrollPanel_tick(ScrollPanel *sp, double dt) {
+void ScrollContainer_tick(ScrollContainer *sp, double dt) {
     if (!sp || dt <= 0.0)
         return;
     float loX = 0.0f, hiX = 0.0f, loY = 0.0f, hiY = 0.0f;
@@ -527,25 +527,25 @@ void ScrollPanel_tick(ScrollPanel *sp, double dt) {
     (*sp).offsetY = tickAxis((*sp).offsetY, &(*sp).velY, loY, hiY, over, friction, dt);
     if (wasMoving || wasOut || (*sp).velX != 0.0f || (*sp).velY != 0.0f)
         markDirty(sp);
-    ScrollPanel_syncToBar(sp);
+    ScrollContainer_syncToBar(sp);
 }
 
 // CONTENT-PANEL PART
 
-void ScrollPanel_panel_setSize(ScrollPanel *sp, float w, float h) {
+void ScrollContainer_panel_setSize(ScrollContainer *sp, float w, float h) {
     if (!sp || !(*sp).content)
         return;
     Container_setSize(&(*(*sp).content).base, w, h);
-    ScrollPanel_setOffset(sp, (*sp).offsetX, (*sp).offsetY);
+    ScrollContainer_setOffset(sp, (*sp).offsetX, (*sp).offsetY);
 }
 
-void ScrollPanel_panel_setBackgroundColor(ScrollPanel *sp, uint32_t color) {
+void ScrollContainer_panel_setBackgroundColor(ScrollContainer *sp, uint32_t color) {
     if (!sp || !(*sp).content)
         return;
     Panel_setBackgroundColor((*sp).content, color);
 }
 
-void ScrollPanel_panel_setRadius(ScrollPanel *sp, float radius) {
+void ScrollContainer_panel_setRadius(ScrollContainer *sp, float radius) {
     if (!sp || !(*sp).content)
         return;
     Panel_setRadius((*sp).content, radius);
@@ -553,27 +553,27 @@ void ScrollPanel_panel_setRadius(ScrollPanel *sp, float radius) {
 
 // SETTERS
 
-void ScrollPanel_setStartInset(ScrollPanel *sp, float inset) {
+void ScrollContainer_setStartInset(ScrollContainer *sp, float inset) {
     if (!sp)
         return;
     (*sp).startInset = inset;
-    ScrollPanel_setOffset(sp, (*sp).offsetX, (*sp).offsetY);
+    ScrollContainer_setOffset(sp, (*sp).offsetX, (*sp).offsetY);
 }
 
-void ScrollPanel_setEndInset(ScrollPanel *sp, float inset) {
+void ScrollContainer_setEndInset(ScrollContainer *sp, float inset) {
     if (!sp)
         return;
     (*sp).endInset = inset;
-    ScrollPanel_setOffset(sp, (*sp).offsetX, (*sp).offsetY);
+    ScrollContainer_setOffset(sp, (*sp).offsetX, (*sp).offsetY);
 }
 
 // GETTERS
 
-Panel *ScrollPanel_getContent(const ScrollPanel *sp) {
+Panel *ScrollContainer_getContent(const ScrollContainer *sp) {
     return sp ? (*sp).content : nullptr;
 }
 
-void ScrollPanel_getOffset(const ScrollPanel *sp, float *outX, float *outY) {
+void ScrollContainer_getOffset(const ScrollContainer *sp, float *outX, float *outY) {
     float x = 0.0f;
     float y = 0.0f;
     if (sp) {
@@ -586,31 +586,31 @@ void ScrollPanel_getOffset(const ScrollPanel *sp, float *outX, float *outY) {
         (*outY) = y;
 }
 
-float ScrollPanel_getStartInset(const ScrollPanel *sp) {
+float ScrollContainer_getStartInset(const ScrollContainer *sp) {
     return sp ? (*sp).startInset : 0.0f;
 }
 
-float ScrollPanel_getEndInset(const ScrollPanel *sp) {
+float ScrollContainer_getEndInset(const ScrollContainer *sp) {
     return sp ? (*sp).endInset : 0.0f;
 }
 
-ScrollBar *ScrollPanel_getBar(const ScrollPanel *sp) {
+ScrollBar *ScrollContainer_getBar(const ScrollContainer *sp) {
     return sp ? (*sp).bar : nullptr;
 }
 
-bool ScrollPanel_scrollbar_isVisible(const ScrollPanel *sp) {
+bool ScrollContainer_scrollbar_isVisible(const ScrollContainer *sp) {
     return sp && (*sp).barVisible;
 }
 
-float ScrollPanel_getSlippery(const ScrollPanel *sp) {
+float ScrollContainer_getSlippery(const ScrollContainer *sp) {
     return sp ? (*sp).slippery : 0.0f;
 }
 
-float ScrollPanel_getOverscroll(const ScrollPanel *sp) {
+float ScrollContainer_getOverscroll(const ScrollContainer *sp) {
     return sp ? (*sp).overscroll : 0.0f;
 }
 
-void ScrollPanel_getVelocity(const ScrollPanel *sp, float *outVX, float *outVY) {
+void ScrollContainer_getVelocity(const ScrollContainer *sp, float *outVX, float *outVY) {
     float vx = 0.0f, vy = 0.0f;
     if (sp) {
         vx = (*sp).velX;
@@ -622,15 +622,15 @@ void ScrollPanel_getVelocity(const ScrollPanel *sp, float *outVX, float *outVY) 
         (*outVY) = vy;
 }
 
-bool ScrollPanel_isScrolling(const ScrollPanel *sp) {
+bool ScrollContainer_isScrolling(const ScrollContainer *sp) {
     return sp && ((*sp).velX != 0.0f || (*sp).velY != 0.0f);
 }
 
-bool ScrollPanel_isNatural(const ScrollPanel *sp) {
+bool ScrollContainer_isNatural(const ScrollContainer *sp) {
     return sp && (*sp).natural;
 }
 
-bool ScrollPanel_isOverscrolled(const ScrollPanel *sp) {
+bool ScrollContainer_isOverscrolled(const ScrollContainer *sp) {
     if (!sp)
         return false;
     float loX = 0.0f, hiX = 0.0f, loY = 0.0f, hiY = 0.0f;
@@ -639,7 +639,7 @@ bool ScrollPanel_isOverscrolled(const ScrollPanel *sp) {
         || (*sp).offsetY < loY || (*sp).offsetY > hiY;
 }
 
-void ScrollPanel_panel_getSize(const ScrollPanel *sp, float *outW, float *outH) {
+void ScrollContainer_panel_getSize(const ScrollContainer *sp, float *outW, float *outH) {
     float w = 0.0f, h = 0.0f;
     if (sp && (*sp).content) {
         w = Container_getWidth(&(*(*sp).content).base);
@@ -651,13 +651,13 @@ void ScrollPanel_panel_getSize(const ScrollPanel *sp, float *outW, float *outH) 
         (*outH) = h;
 }
 
-uint32_t ScrollPanel_panel_getBackgroundColor(const ScrollPanel *sp) {
+uint32_t ScrollContainer_panel_getBackgroundColor(const ScrollContainer *sp) {
     if (sp && (*sp).content)
         return Panel_getBackgroundColor((*sp).content);
     return PANEL_COLOR_CLEAR;
 }
 
-float ScrollPanel_panel_getRadius(const ScrollPanel *sp) {
+float ScrollContainer_panel_getRadius(const ScrollContainer *sp) {
     if (sp && (*sp).content)
         return Panel_getRadius((*sp).content);
     return 0.0f;
@@ -665,7 +665,7 @@ float ScrollPanel_panel_getRadius(const ScrollPanel *sp) {
 
 // LAYER PART
 
-void ScrollPanel_childFrame(const ScrollPanel *sp, const Panel *child, float winW, float winH,
+void ScrollContainer_childFrame(const ScrollContainer *sp, const Panel *child, float winW, float winH,
                             float *outX, float *outY, float *outW, float *outH) {
     float x = 0.0f, y = 0.0f, w = 0.0f, h = 0.0f;
     if (sp && child) {

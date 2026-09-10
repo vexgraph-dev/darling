@@ -1,4 +1,6 @@
 #import <QuartzCore/CALayer.h>
+#import <QuartzCore/CAMetalLayer.h>
+#import <Metal/Metal.h>
 #import <IOSurface/IOSurface.h>
 #import <stdatomic.h>
 #include <string.h>
@@ -29,12 +31,15 @@
  *     int width, height;   // Current display size shown in the window
  *     int maxWidth, maxHeight; // Max IOSurface allocation (never reallocates)
  *     _Atomic bool dirty;  // Repaint-needed flag
+ *     bool isMetal;        // CAMetalLayer pane (own VkPane swapchain)
+ *     int chain;           // VkPane chain index (-1 when not metal)
  *   }
  *
  * FUNCTION REGISTRY:
  * ----------------------------------------------------------------------------
  * Constructors:
  *   - PanelCocoa_new(panel, width, height)
+ *   - PanelCocoa_newMetal(panel, width, height)
  *
  * Core Functions:
  *   - PanelCocoa_free(pc)
@@ -44,6 +49,8 @@
  *   - PanelCocoa_surface(pc)
  *   - PanelCocoa_markDirty(pc)
  *   - PanelCocoa_fromPanel(panel)
+ *   - PanelCocoa_isMetal(pc)
+ *   - PanelCocoa_chain(pc)
  *
  * Setters:
  *   - PanelCocoa_setSize(pc, width, height)
@@ -83,6 +90,8 @@ struct PanelCocoa {
     int width, height;      // current display size (what's shown in window)
     int maxWidth, maxHeight; // max IOSurface size (fixed allocation)
     _Atomic bool dirty;     // needs repaint
+    bool isMetal;           // CAMetalLayer pane of glass (own VkPane chain)
+    int chain;              // VkPane chain index (-1 when not metal)
 };
 
 // Pixel format: BGRA8 — safe for both Vulkan import/export and AppKit.
@@ -188,8 +197,96 @@ PanelCocoa *PanelCocoa_new(void *panel, int width, int height) {
     return pc;
 }
 
+// Register (or reuse) the Panel -> PanelCocoa lookup row.
+static void registerPanelEntry(void *panel, PanelCocoa *pc) {
+    size_t slot = SIZE_MAX;
+    for (size_t i = 0; i < s_registryCount; i++) {
+        if (s_registry[i].panel == nullptr) {
+            slot = i;
+            break;
+        }
+    }
+    if (slot == SIZE_MAX) {
+        if (s_registryCount >= s_registryCapacity) {
+            size_t newCap = s_registryCapacity == 0 ? 16 : s_registryCapacity * 2;
+            PanelEntry *newArr = (PanelEntry*) realloc(s_registry, newCap * sizeof(PanelEntry));
+            if (newArr) {
+                s_registry = newArr;
+                memset(s_registry + s_registryCapacity, 0, (newCap - s_registryCapacity) * sizeof(PanelEntry));
+                s_registryCapacity = newCap;
+            }
+        }
+        if (s_registryCount < s_registryCapacity) {
+            slot = s_registryCount++;
+        }
+    }
+    if (slot != SIZE_MAX) {
+        s_registry[slot].panel = panel;
+        s_registry[slot].pc = pc;
+    }
+}
+
+PanelCocoa *PanelCocoa_newMetal(void *panel, int width, int height) {
+    if (!panel || width <= 0 || height <= 0) return nullptr;
+
+    PanelCocoa *pc = (PanelCocoa*) calloc(1, sizeof(PanelCocoa));
+    if (!pc) return nullptr;
+
+    (*pc).panel = panel;
+    (*pc).width = width;
+    (*pc).height = height;
+    (*pc).maxWidth = width;
+    (*pc).maxHeight = height;
+    (*pc).isMetal = true;
+    (*pc).chain = -1;
+    atomic_init(&(*pc).dirty, false);
+
+    // The "pane of glass": a CAMetalLayer with its own Vulkan swapchain.
+    CAMetalLayer *layer = [CAMetalLayer layer];
+    if (!layer) {
+        free(pc);
+        return nullptr;
+    }
+    layer.device = MTLCreateSystemDefaultDevice();
+    layer.pixelFormat = MTLPixelFormatBGRA8Unorm;
+    layer.geometryFlipped = YES;            // Vulkan top-down space
+    layer.opaque = NO;                      // blur show-through
+    layer.presentsWithTransaction = NO;     // panes present independently
+    // Rule 12: contentsScale = backingScaleFactor so native physical pixels
+    // of the pane's swapchain map 1:1 to logical points. drawableSize is
+    // points * scale (physical pixels), matching the IOSurface path.
+    extern float TextCore_backingScale(void);
+    float scale = TextCore_backingScale();
+    if (scale <= 0.0f) scale = 1.0f;
+    layer.contentsScale = (CGFloat) scale;
+    layer.drawableSize = CGSizeMake((CGFloat) width * scale, (CGFloat) height * scale);
+    layer.anchorPoint = CGPointMake(0, 0);
+    (*pc).layer = (CALayer*) layer;
+
+    // Own swapchain: the pane renders into ITS chain at ITS fixed size. The
+    // window board swapchain is untouched — live resize only moves the layer
+    // frame, never rebuilds the pane (Rule 11 / Rule 14).
+    extern int VkPane_register(void *layer, int width, int height, void *owner);
+    int chain = VkPane_register((__bridge void*) layer, width, height, panel);
+    if (chain < 0) {
+        free(pc);
+        return nullptr;
+    }
+    (*pc).chain = chain;
+
+    registerPanelEntry(panel, pc);
+    return pc;
+}
+
 void PanelCocoa_free(PanelCocoa *pc) {
     if (!pc) return;
+    // Metal pane: detach its swapchain registry entry. Unregistering runs
+    // thread-0 teardown; the engine owns the layer's Vulkan surface.
+    if ((*pc).isMetal) {
+        extern int VkPane_unregister(int index);
+        if ((*pc).chain >= 0)
+            VkPane_unregister((*pc).chain);
+    }
     // Unregister from dynamic lookup table
     if (s_registry) {
         for (size_t i = 0; i < s_registryCount; i++) {
@@ -209,7 +306,21 @@ bool PanelCocoa_setSize(PanelCocoa *pc, int width, int height) {
     if (!pc || width <= 0 || height <= 0) return false;
     if (width == (*pc).width && height == (*pc).height) return true;
 
-    // Update display size (IOSurface stays at max size, never reallocates)
+    if ((*pc).isMetal) {
+        // Pane of glass: the swapchain extent follows the pane's OWN size.
+        // The window-resize path never reaches here with a changed pane size
+        // (anchored panes keep their rect while the window moves), so the
+        // chain rebuilds only on true pane drift.
+        extern bool VkPane_resize(int index, int width, int height);
+        bool ok = VkPane_resize((*pc).chain, width, height);
+        if (ok) {
+            (*pc).width = width;
+            (*pc).height = height;
+        }
+        return ok;
+    }
+
+    // IOSurface path: Update display size (IOSurface stays at max size, never reallocates)
     (*pc).width = width;
     (*pc).height = height;
 
@@ -234,6 +345,9 @@ int PanelCocoa_width(const PanelCocoa *pc) { return pc ? (*pc).width : 0; }
 int PanelCocoa_height(const PanelCocoa *pc) { return pc ? (*pc).height : 0; }
 void *PanelCocoa_surface(PanelCocoa *pc) { return pc ? (void*) (*pc).surface : nullptr; }
 
+bool PanelCocoa_isMetal(const PanelCocoa *pc) { return pc ? (*pc).isMetal : false; }
+int PanelCocoa_chain(const PanelCocoa *pc) { return pc ? (*pc).chain : -1; }
+
 void PanelCocoa_markDirty(PanelCocoa *pc) {
     if (pc) atomic_store(&(*pc).dirty, true);
 }
@@ -248,49 +362,34 @@ void *PanelCocoa_fromPanel(void *panel) {
     return nullptr;
 }
 
-void PanelCocoa_setAnchors(PanelCocoa *pc, int parentAnchor, int selfAnchor) {
+void PanelCocoa_setAnchors(PanelCocoa *pc, int anchor, int pivot) {
     if (!pc || !(*pc).layer) return;
 
-    // Rule 13: Port selfAnchor to CoreAnimation anchorPoint and contentsGravity
+    // Rule 13: Port pivot to CoreAnimation anchorPoint and contentsGravity.
+    // Pivot has 5 points: 4 corners + center.
     // (0,0) is top-left in flipped coordinates, (1,1) is bottom-right
     CGPoint anchorPoint = CGPointMake(0.0, 0.0);
     CALayerContentsGravity gravity = kCAGravityTopLeft;
-    switch (selfAnchor) {
-        case 0:
+    switch (pivot) {
+        case 0: // PIVOT_TOP_LEFT
             anchorPoint = CGPointMake(0.0, 0.0);
             gravity = kCAGravityTopLeft;
             break;
-        case 1:
-            anchorPoint = CGPointMake(0.5, 0.0);
-            gravity = kCAGravityTop;
-            break;
-        case 2:
+        case 1: // PIVOT_TOP_RIGHT
             anchorPoint = CGPointMake(1.0, 0.0);
             gravity = kCAGravityTopRight;
             break;
-        case 3:
-            anchorPoint = CGPointMake(0.0, 0.5);
-            gravity = kCAGravityLeft;
-            break;
-        case 4:
-            anchorPoint = CGPointMake(0.5, 0.5);
-            gravity = kCAGravityCenter;
-            break;
-        case 5:
-            anchorPoint = CGPointMake(1.0, 0.5);
-            gravity = kCAGravityRight;
-            break;
-        case 6:
+        case 2: // PIVOT_BOTTOM_LEFT
             anchorPoint = CGPointMake(0.0, 1.0);
             gravity = kCAGravityBottomLeft;
             break;
-        case 7:
-            anchorPoint = CGPointMake(0.5, 1.0);
-            gravity = kCAGravityBottom;
-            break;
-        case 8:
+        case 3: // PIVOT_BOTTOM_RIGHT
             anchorPoint = CGPointMake(1.0, 1.0);
             gravity = kCAGravityBottomRight;
+            break;
+        case 4: // PIVOT_CENTER
+            anchorPoint = CGPointMake(0.5, 0.5);
+            gravity = kCAGravityCenter;
             break;
         default:
             anchorPoint = CGPointMake(0.0, 0.0);
@@ -298,10 +397,16 @@ void PanelCocoa_setAnchors(PanelCocoa *pc, int parentAnchor, int selfAnchor) {
             break;
     }
 
-    // Port parentAnchor to AppKit autoresizingMask
+    // Port anchor to AppKit autoresizingMask
     // (Flexible margins push from the opposite side. e.g. MinXMargin pushes from left -> anchors to right)
+    // LIVE-RESIZE CONTRACT (Rule 11.6): this mask + anchorPoint is the
+    // WindowServer-accelerated anchor — CA lays the layer out inside the
+    // window-resize transaction, in lockstep with the window edge. Explicit
+    // frames (anti_GetChildLayout) are applied at attach/settle only, never
+    // per drag event (Window_compositeIOSurfaceChildren early-returns while
+    // Window_isLiveResizing).
     CAAutoresizingMask mask = kCALayerMaxXMargin | kCALayerMaxYMargin; // Default: Top-Left (Right & Bottom flexible)
-    switch (parentAnchor) {
+    switch (anchor) {
         case 0: mask = kCALayerMaxXMargin | kCALayerMaxYMargin; break; // TOP_LEFT
         case 1: mask = kCALayerMinXMargin | kCALayerMaxXMargin | kCALayerMaxYMargin; break; // TOP_CENTER
         case 2: mask = kCALayerMinXMargin | kCALayerMaxYMargin; break; // TOP_RIGHT

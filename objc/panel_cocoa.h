@@ -31,6 +31,20 @@ typedef struct PanelCocoa PanelCocoa;
 // size in pixels. Returns nullptr on failure.
 PanelCocoa *PanelCocoa_new(void *panel, int width, int height);
 
+// Attach CAMetalLayer "pane of glass" backing to an existing Panel: the
+// panel owns its OWN Vulkan swapchain (registered with VkPane) and presents
+// independently of the window board — live window resize only moves the
+// layer frame (WindowServer composites), the pane never rebuilds. Size is
+// the pane's fixed pixel size. Returns nullptr on failure.
+PanelCocoa *PanelCocoa_newMetal(void *panel, int width, int height);
+
+// True when the backing is a CAMetalLayer pane (Vulkan swapchain host)
+// rather than an IOSurface.
+bool PanelCocoa_isMetal(const PanelCocoa *pc);
+
+// The registered VkPane chain index, or -1 when not a metal pane.
+int PanelCocoa_chain(const PanelCocoa *pc);
+
 // Free the IOSurface backing. The Panel itself is owned by the caller.
 void PanelCocoa_free(PanelCocoa *pc);
 
@@ -55,9 +69,10 @@ void *PanelCocoa_surface(PanelCocoa *pc);  // IOSurfaceRef
 void PanelCocoa_markDirty(PanelCocoa *pc);
 bool PanelCocoa_isDirty(const PanelCocoa *pc);
 
-// Set darling anchor settings (parent anchor and self anchor) on the CALayer.
-// Updates layer.contentsGravity and layer.autoresizingMask accordingly.
-void PanelCocoa_setAnchors(PanelCocoa *pc, int parentAnchor, int selfAnchor);
+// Set darling anchor+pivot settings on the CALayer.
+//   anchor (9-grid):  maps to layer.autoresizingMask (resize tracking).
+//   pivot (5 points): maps to layer.anchorPoint + layer.contentsGravity.
+void PanelCocoa_setAnchors(PanelCocoa *pc, int anchor, int pivot);
 
 // Lookup: retrieve the PanelCocoa backing for a Panel. Returns nullptr if the
 // panel has no IOSurface backing. Used by the window bridge.

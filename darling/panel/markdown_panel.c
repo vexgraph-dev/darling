@@ -32,7 +32,7 @@
  * layout needs a font for quads); without one those lines fall back to
  * plain Labels with markers stripped. RichText span tags use two-digit
  * style ids ([00]/[01]/...) because the RichText parser reserves
- * single-char tokens for n/l/c/r/j. Rows live in a vertical ListPanel,
+ * single-char tokens for n/l/c/r/j. Rows live in a vertical ListContainer,
  * which owns Y positions; stackRow sizes rows and advances the height
  * cursor for the panel's own height accounting.
  *
@@ -42,7 +42,7 @@
  *   uint8_t *textBlock;                // Owned vexspoke string block (source)
  *   Font *font;                        // Aliased font for RichText rows; nullable
  *   uint32_t codeBackground;           // Fill color behind fenced code rows
- *   ListPanel *rows;                   // Owned vertical ListPanel of rows
+ *   ListContainer *rows;                   // Owned vertical ListContainer of rows
  *   float rowSpacing;                  // Vertical gap between stacked rows
  *   struct MarkdownRowSlot *slots;     // Owned row records (see SLOT RECORD)
  *   size_t rowCount;                   // Active row record count
@@ -123,7 +123,7 @@ MarkdownPanel *MarkdownPanel_0(void) {
     }
     (*s).base = (*b);
     Memory_free(b);
-    ListPanel *box = ListPanel_0();
+    ListContainer *box = ListContainer_0();
     if (!box) {
         Memory_free(s);
         return nullptr;
@@ -133,7 +133,7 @@ MarkdownPanel *MarkdownPanel_0(void) {
     (*s).codeBackground = MARKDOWN_CODE_BACKGROUND;
     (*s).rows = box;
     (*s).rowSpacing = MARKDOWN_DEFAULT_SPACING;
-    ListPanel_setSpacing(box, MARKDOWN_DEFAULT_SPACING);
+    ListContainer_setSpacing(box, MARKDOWN_DEFAULT_SPACING);
     (*s).slots = nullptr;
     (*s).rowCount = 0;
     (*s).rowCapacity = 0;
@@ -181,10 +181,10 @@ static bool pushSlot(MarkdownPanel *s, Panel *row, RichText *model, uint8_t isRi
 static void clearRows(MarkdownPanel *s) {
     if (!s)
         return;
-    ListPanel *box = (*s).rows;
+    ListContainer *box = (*s).rows;
     if (box) {
-        while (ListPanel_count(box) > 0)
-            ListPanel_remove(box, 0);
+        while (ListContainer_count(box) > 0)
+            ListContainer_remove(box, 0);
     }
     struct MarkdownRowSlot *slots = (*s).slots;
     size_t n = (*s).rowCount;
@@ -395,7 +395,7 @@ static void fillStripped(const char *line, size_t len, char *dest) {
 }
 
 static float stackRow(MarkdownPanel *s, Panel *row, float cursor, float height) {
-    // Y positions belong to the ListPanel now; rows only take their size.
+    // Y positions belong to the ListContainer now; rows only take their size.
     Panel *b = &(*s).base;
     Container *c = &(*b).base;
     float w = Container_getWidth(c);
@@ -406,7 +406,7 @@ static float stackRow(MarkdownPanel *s, Panel *row, float cursor, float height) 
 }
 
 static void addLabelRow(MarkdownPanel *s, const char *line, size_t len, bool bullet, float size, uint32_t color, uint32_t bg, float *cursor) {
-    ListPanel *box = (*s).rows;
+    ListContainer *box = (*s).rows;
     if (!box || !cursor)
         return;
     size_t extra = bullet ? 4 : 0;
@@ -435,11 +435,11 @@ static void addLabelRow(MarkdownPanel *s, const char *line, size_t len, bool bul
     if (bg != 0u)
         Label_setBackgroundColor(lbl, bg);
     Panel *row = &(*lbl).base;
-    ListPanel_add(box, row);
+    ListContainer_add(box, row);
     if (!pushSlot(s, row, nullptr, 0)) {
-        size_t n = ListPanel_count(box);
+        size_t n = ListContainer_count(box);
         if (n > 0)
-            ListPanel_remove(box, (int32_t)(n - 1));
+            ListContainer_remove(box, (int32_t)(n - 1));
         Label_free(lbl);
         return;
     }
@@ -447,7 +447,7 @@ static void addLabelRow(MarkdownPanel *s, const char *line, size_t len, bool bul
 }
 
 static void addRichRow(MarkdownPanel *s, const char *line, size_t len, bool bullet, float *cursor) {
-    ListPanel *box = (*s).rows;
+    ListContainer *box = (*s).rows;
     Font *font = (*s).font;
     if (!box || !font || !cursor)
         return;
@@ -495,11 +495,11 @@ static void addRichRow(MarkdownPanel *s, const char *line, size_t len, bool bull
     }
     RichLabel_setTextModel(rl, rt);
     Panel *row = &(*rl).base;
-    ListPanel_add(box, row);
+    ListContainer_add(box, row);
     if (!pushSlot(s, row, rt, 1)) {
-        size_t n = ListPanel_count(box);
+        size_t n = ListContainer_count(box);
         if (n > 0)
-            ListPanel_remove(box, (int32_t)(n - 1));
+            ListContainer_remove(box, (int32_t)(n - 1));
         RichText_free(rt);
         Memory_free(rl);
         return;
@@ -514,7 +514,7 @@ static void rebuild(MarkdownPanel *s) {
     if (!s)
         return;
     clearRows(s);
-    ListPanel *box = (*s).rows;
+    ListContainer *box = (*s).rows;
     if (!box)
         return;
     uint8_t *block = (*s).textBlock;
@@ -590,7 +590,7 @@ static void rebuild(MarkdownPanel *s) {
     Panel_setSize(&(*box).base, w, cursor);
     // Authoritative pass: rows were sized after their per-add layouts ran,
     // so re-stack once with final heights (cold path, documents only).
-    ListPanel_layout(box);
+    ListContainer_layout(box);
     markDirty(s);
 }
 
@@ -646,7 +646,7 @@ void MarkdownPanel_setRowSpacing(MarkdownPanel *s, float spacing) {
         spacing = 0.0f;
     (*s).rowSpacing = spacing;
     if ((*s).rows)
-        ListPanel_setSpacing((*s).rows, spacing);
+        ListContainer_setSpacing((*s).rows, spacing);
     rebuild(s);
 }
 
@@ -690,7 +690,7 @@ uint32_t MarkdownPanel_getCodeBackground(const MarkdownPanel *s) {
 }
 
 Panel *MarkdownPanel_getRows(const MarkdownPanel *s) {
-    ListPanel *rows = s ? (*s).rows : nullptr;
+    ListContainer *rows = s ? (*s).rows : nullptr;
     return rows ? &(*rows).base : nullptr;
 }
 

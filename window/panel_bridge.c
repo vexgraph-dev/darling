@@ -7,7 +7,7 @@
 #include "lang/vec4.h"
 #include "darling/container.h"
 #include "darling/panel/panel.h"
-#include "darling/panel/scroll_panel.h"
+#include "darling/panel/scroll_container.h"
 #include "window/window.h"
 #include "annotation/overview.h"
 
@@ -27,25 +27,25 @@
  *   - PanelCocoa_new(panel, w, h)
  *
  * Core Functions:
- *   - anti_AttachPanelIOSurfaceChildren(window, contentPanel, width, height)
+ *   - Darling_attachPanelIOSurfaceChildren(window, contentPanel, width, height)
  *   - TextCore_backingScale(void)
  *   - for(i++)
  *   - PanelCocoa_fromPanel(panel)
- *   - anti_ResizePanelIOSurfaceChildren(window, contentPanel, width, height)
- *   - anti_CompositeIOSurfaceChildren(window, contentPanel)
+ *   - Darling_resizePanelIOSurfaceChildren(window, contentPanel, width, height)
+ *   - Darling_compositeIOSurfaceChildren(window, contentPanel)
  *
  * Setters:
  *   - PanelCocoa_setSize(pc, w, h)
  *
  * Getters:
- *   - anti_GetPanelMaxSize(p, outMaxW, outMaxH)
- *   - anti_GetChildLayout(child, winW, winH, outX, outY, outW, outH)
- *   - anti_GetChildCount(contentPanel)
- *   - anti_GetChildAt(contentPanel, index)
+ *   - Darling_getPanelMaxSize(p, outMaxW, outMaxH)
+ *   - Darling_getChildLayout(child, winW, winH, outX, outY, outW, outH)
+ *   - Darling_getChildCount(contentPanel)
+ *   - Darling_getChildAt(contentPanel, index)
  *   - Panel_getChild(contentPanel, index)
- *   - anti_GetPanelSize(p, outW, outH)
- *   - anti_GetChildParentAnchor(child)
- *   - anti_GetChildSelfAnchor(child)
+ *   - Darling_getPanelSize(p, outW, outH)
+ *   - Darling_getChildAnchor(child)
+ *   - Darling_getChildPivot(child)
  * ============================================================================
  */
 
@@ -53,7 +53,7 @@
 // src/window/panel_bridge.c — pure-C bridge for IOSurface panel operations.
 //
 // LAYER MODEL (the stack, front to back):
-//   scrollbar ......... own IOSurface (ScrollPanel right-dock, topmost child)
+//   scrollbar ......... own IOSurface (ScrollContainer right-dock, topmost child)
 //   1st-gen children .. one IOSurface EACH (attached here, per direct child)
 //   window ............ CAMetalLayer (AppKit-owned, Vulkan never touches it)
 //
@@ -67,7 +67,7 @@
 //             Vulkan render handlers (Panel_setRenderHandler, cf. vk_test's
 //             hud_pulse/pic_render), NOT as nested layers/JPanels).
 //   scrollbar = own IOSurface at the layer-3 edge (topmost child order).
-//   Scroll offsets reach layers through ScrollPanel_childFrame (content
+//   Scroll offsets reach layers through ScrollContainer_childFrame (content
 //   shifts by -offset, chrome stays) — C-side resolve is the source of
 //   truth, exactly as vk_test's hand-placed anchors proved.
 //
@@ -82,7 +82,7 @@
 
 // Attach IOSurface backing to ALL children of a content panel.
 // Returns the number of IOSurface backings attached.
-int anti_AttachPanelIOSurfaceChildren(Window *window, Panel *contentPanel, int width, int height) {
+int Darling_attachPanelIOSurfaceChildren(Window *window, Panel *contentPanel, int width, int height) {
     if (!window || !contentPanel)
         return 0;
     (void) window;
@@ -99,7 +99,7 @@ int anti_AttachPanelIOSurfaceChildren(Window *window, Panel *contentPanel, int w
             continue;
 
         // Skip completely transparent panels with no render handler and no scene.
-        // Pure clamp/layout spacers (like ScrollPanel bounds) must never own an IOSurface.
+        // Pure clamp/layout spacers (like ScrollContainer bounds) must never own an IOSurface.
         uint32_t bg = Panel_getBackgroundColor(child);
         Panel_RenderFn rfn = Panel_getRenderHandler(child);
         uint64_t childType = Memory_type(child);
@@ -110,8 +110,8 @@ int anti_AttachPanelIOSurfaceChildren(Window *window, Panel *contentPanel, int w
 
         // Get the child's MAX size for IOSurface allocation (fixed, never reallocates)
         int maxW = 0, maxH = 0;
-        extern void anti_GetPanelMaxSize(Panel *p, int *outMaxW, int *outMaxH);
-        anti_GetPanelMaxSize(child, &maxW, &maxH);
+        extern void Darling_getPanelMaxSize(Panel *p, int *outMaxW, int *outMaxH);
+        Darling_getPanelMaxSize(child, &maxW, &maxH);
         if (maxW <= 0 || maxH <= 0) {
             // Fallback: use layout rect
             Vec4 rect;
@@ -133,6 +133,13 @@ int anti_AttachPanelIOSurfaceChildren(Window *window, Panel *contentPanel, int w
         if (pc) {
             extern bool PanelCocoa_setSize(void *pc, int w, int h);
             PanelCocoa_setSize(pc, allocW, allocH);
+        } else if (isScene) {
+            // Scene = "pane of glass": its OWN CAMetalLayer + Vulkan swapchain.
+            // The window board never stamps scenes (Rule 14); this pane
+            // presents independent of window resize.
+            extern void *PanelCocoa_newMetal(void *panel, int w, int h);
+            if (PanelCocoa_newMetal(child, allocW, allocH))
+                attached++;
         } else {
             extern void *PanelCocoa_new(void *panel, int w, int h);
             if (PanelCocoa_new(child, allocW, allocH))
@@ -144,7 +151,7 @@ int anti_AttachPanelIOSurfaceChildren(Window *window, Panel *contentPanel, int w
 
 // Resize IOSurface backing for ALL children of a content panel.
 // Returns the number of IOSurface backings resized.
-int anti_ResizePanelIOSurfaceChildren(Window *window, Panel *contentPanel, int width, int height) {
+int Darling_resizePanelIOSurfaceChildren(Window *window, Panel *contentPanel, int width, int height) {
     if (!window || !contentPanel)
         return 0;
     (void) window;
@@ -179,7 +186,7 @@ int anti_ResizePanelIOSurfaceChildren(Window *window, Panel *contentPanel, int w
 }
 
 // Composite IOSurface-backed children into the window's layer tree.
-void anti_CompositeIOSurfaceChildren(Window *window, Panel *contentPanel) {
+void Darling_compositeIOSurfaceChildren(Window *window, Panel *contentPanel) {
     (void)window;
     (void)contentPanel;
     // Real implementation is in window_cocoa.m (ObjC)
@@ -187,14 +194,14 @@ void anti_CompositeIOSurfaceChildren(Window *window, Panel *contentPanel) {
 
 // Layout helper for ObjC side (avoids pulling darling/panel.h into ObjC).
 // C-side resolve is the source of truth: when the child's parent is a
-// ScrollPanel (the window-IS-y model), the frame goes through
-// ScrollPanel_childFrame so content shifts by -offset while chrome (the
+// ScrollContainer (the window-IS-y model), the frame goes through
+// ScrollContainer_childFrame so content shifts by -offset while chrome (the
 // bar) stays — raw Container_resolve would pin scrolled content in place.
-void anti_GetChildLayout(Panel *child, float winW, float winH, float *outX, float *outY, float *outW, float *outH) {
+void Darling_getChildLayout(Panel *child, float winW, float winH, float *outX, float *outY, float *outW, float *outH) {
     if (!child || !outX || !outY || !outW || !outH) return;
     Panel *parent = Panel_getParent(child);
     if (parent && Memory_type(parent) == TYPE_SCROLL_PANEL_SINGLETON) {
-        ScrollPanel_childFrame((ScrollPanel *)parent, child, winW, winH, outX, outY, outW, outH);
+        ScrollContainer_childFrame((ScrollContainer *)parent, child, winW, winH, outX, outY, outW, outH);
         return;
     }
     Vec4 rect;
@@ -206,36 +213,41 @@ void anti_GetChildLayout(Panel *child, float winW, float winH, float *outX, floa
 }
 
 // Child iteration helpers for ObjC side (avoids pulling panel.h into ObjC).
-int anti_GetChildCount(Panel *contentPanel) {
+int Darling_getChildCount(Panel *contentPanel) {
     if (!contentPanel) return 0;
     return (int)Panel_childCount(contentPanel);
 }
 
-Panel *anti_GetChildAt(Panel *contentPanel, int index) {
+Panel *Darling_getChildAt(Panel *contentPanel, int index) {
     if (!contentPanel) return nullptr;
     return Panel_getChild(contentPanel, index);
 }
 
 // Get panel's max size (first setSize = max, subsequent = clamped current).
-void anti_GetPanelMaxSize(Panel *p, int *outMaxW, int *outMaxH) {
+void Darling_getPanelMaxSize(Panel *p, int *outMaxW, int *outMaxH) {
     if (!p || !outMaxW || !outMaxH) return;
     *outMaxW = (int)((*p).base.maxW + 0.5f);
     *outMaxH = (int)((*p).base.maxH + 0.5f);
 }
 
 // Get panel's current display size.
-void anti_GetPanelSize(Panel *p, int *outW, int *outH) {
+void Darling_getPanelSize(Panel *p, int *outW, int *outH) {
     if (!p || !outW || !outH) return;
     *outW = (int)((*p).base.w + 0.5f);
     *outH = (int)((*p).base.h + 0.5f);
 }
 
-int anti_GetChildParentAnchor(Panel *child) {
-    if (!child) return CONTAINER_PARENT_ANCHOR_TOP_LEFT;
-    return Container_getParentAnchor(&(*child).base);
+int Darling_getChildAnchor(Panel *child) {
+    if (!child) return CONTAINER_ANCHOR_TOP_LEFT;
+    return Container_getAnchor(&(*child).base);
 }
 
-int anti_GetChildSelfAnchor(Panel *child) {
-    if (!child) return CONTAINER_SELF_ANCHOR_TOP_LEFT;
-    return Container_getSelfAnchor(&(*child).base);
+int Darling_getChildPivot(Panel *child) {
+    if (!child) return CONTAINER_PIVOT_TOP_LEFT;
+    return Container_getPivot(&(*child).base);
+}
+
+void Darling_setPanelSize(Panel *p, float w, float h) {
+    if (!p) return;
+    Container_setSize(&(*p).base, w, h);
 }

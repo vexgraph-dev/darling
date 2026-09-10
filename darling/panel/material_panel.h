@@ -49,10 +49,10 @@ static inline void MaterialPanel_setLocation(MaterialPanel *m, float x, float y)
     { if (m) Panel_setLocation(&(*m).base, x, y); }
 static inline void MaterialPanel_setSize(MaterialPanel *m, float w, float h)
     { if (m) Panel_setSize(&(*m).base, w, h); }
-static inline void MaterialPanel_setParentAnchor(MaterialPanel *m, int anchor)
-    { if (m) Panel_setParentAnchor(&(*m).base, anchor); }
-static inline void MaterialPanel_setSelfAnchor(MaterialPanel *m, int anchor)
-    { if (m) Panel_setSelfAnchor(&(*m).base, anchor); }
+static inline void MaterialPanel_setAnchor(MaterialPanel *m, int anchor)
+    { if (m) Panel_setAnchor(&(*m).base, anchor); }
+static inline void MaterialPanel_setPivot(MaterialPanel *m, int pivot)
+    { if (m) Panel_setPivot(&(*m).base, pivot); }
 static inline void MaterialPanel_setBackgroundColor(MaterialPanel *m, uint32_t color)
     { if (m) Panel_setBackgroundColor(&(*m).base, color); }
 

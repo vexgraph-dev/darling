@@ -61,10 +61,10 @@ static inline void Picture_setLocation(Picture *p, float x, float y)
     { if (p) Panel_setLocation(&(*p).base, x, y); }
 static inline void Picture_setSize(Picture *p, float w, float h)
     { if (p) Panel_setSize(&(*p).base, w, h); }
-static inline void Picture_setParentAnchor(Picture *p, int anchor)
-    { if (p) Panel_setParentAnchor(&(*p).base, anchor); }
-static inline void Picture_setSelfAnchor(Picture *p, int anchor)
-    { if (p) Panel_setSelfAnchor(&(*p).base, anchor); }
+static inline void Picture_setAnchor(Picture *p, int anchor)
+    { if (p) Panel_setAnchor(&(*p).base, anchor); }
+static inline void Picture_setPivot(Picture *p, int pivot)
+    { if (p) Panel_setPivot(&(*p).base, pivot); }
 static inline void Picture_setBackgroundColor(Picture *p, uint32_t color)
     { if (p) Panel_setBackgroundColor(&(*p).base, color); }
 

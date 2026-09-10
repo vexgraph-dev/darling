@@ -42,10 +42,10 @@ static inline void Object3D_setLocation(Object3D *o, float x, float y)
     { if (o) Panel_setLocation(&(*o).base, x, y); }
 static inline void Object3D_setSize(Object3D *o, float w, float h)
     { if (o) Panel_setSize(&(*o).base, w, h); }
-static inline void Object3D_setParentAnchor(Object3D *o, int anchor)
-    { if (o) Panel_setParentAnchor(&(*o).base, anchor); }
-static inline void Object3D_setSelfAnchor(Object3D *o, int anchor)
-    { if (o) Panel_setSelfAnchor(&(*o).base, anchor); }
+static inline void Object3D_setAnchor(Object3D *o, int anchor)
+    { if (o) Panel_setAnchor(&(*o).base, anchor); }
+static inline void Object3D_setPivot(Object3D *o, int pivot)
+    { if (o) Panel_setPivot(&(*o).base, pivot); }
 static inline void Object3D_setBackgroundColor(Object3D *o, uint32_t color)
     { if (o) Panel_setBackgroundColor(&(*o).base, color); }
 

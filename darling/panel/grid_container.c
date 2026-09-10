@@ -1,4 +1,4 @@
-#include "darling/panel/grid_panel.h"
+#include "darling/panel/grid_container.h"
 
 #include "annotation/overview.h"
 #include "darling/panel/panel.h"
@@ -13,7 +13,7 @@
 ;;OVERVIEW
 /**
  * ============================================================================
- * CLASS: GridPanel (embeds Panel)
+ * CLASS: GridContainer (embeds Panel)
  * LEVEL: L2 — Behavior (excel-core grid layout behavior API)
  * ============================================================================
  * Fixed or auto rows x cols of Panel* cell slots with uniform gaps,
@@ -25,7 +25,7 @@
  * cell rects (no stretch in v1) and wraps the grid's own size around
  * the total. Selection/editing lives above, not here.
  *
- * STRUCT FIELDS (Mirroring darling/panel/grid_panel.h):
+ * STRUCT FIELDS (Mirroring darling/panel/grid_container.h):
  * ----------------------------------------------------------------------------
  *   Panel base;          // Inherited layout/tree/background state (cells are
  *                        // NOT base children; they live in cells[] below)
@@ -37,35 +37,35 @@
  *   int32_t cols;        // Logical column extent (>= 0; grows on setCell)
  *   float gapX;          // Uniform horizontal gap between columns (>= 0)
  *   float gapY;          // Uniform vertical gap between rows (>= 0)
- *   int32_t headerRows;  // Frozen header row count (ScrollPanel honors; >= 0)
- *   int32_t headerCols;  // Frozen header column count (ScrollPanel honors)
+ *   int32_t headerRows;  // Frozen header row count (ScrollContainer honors; >= 0)
+ *   int32_t headerCols;  // Frozen header column count (ScrollContainer honors)
  *
  * FUNCTION REGISTRY:
  * ----------------------------------------------------------------------------
  * Constructors:
- *   - GridPanel_0(void)
- *   - GridPanel_2(rows, cols)
+ *   - GridContainer_0(void)
+ *   - GridContainer_2(rows, cols)
  *
  * Core Functions:
- *   - GridPanel_setCell(g, row, col, cell)
- *   - GridPanel_getCell(g, row, col)
- *   - GridPanel_layout(g)
+ *   - GridContainer_setCell(g, row, col, cell)
+ *   - GridContainer_getCell(g, row, col)
+ *   - GridContainer_layout(g)
  *
  * Setters:
- *   - GridPanel_setLocation(g, x, y)
- *   - GridPanel_setSize(g, w, h)
- *   - GridPanel_setGap(g, gx, gy)
- *   - GridPanel_setHeaderRows(g, count)
- *   - GridPanel_setHeaderCols(g, count)
- *   - GridPanel_setRowHeight(g, row, h)
+ *   - GridContainer_setLocation(g, x, y)
+ *   - GridContainer_setSize(g, w, h)
+ *   - GridContainer_setGap(g, gx, gy)
+ *   - GridContainer_setHeaderRows(g, count)
+ *   - GridContainer_setHeaderCols(g, count)
+ *   - GridContainer_setRowHeight(g, row, h)
  *
  * Getters:
- *   - GridPanel_getGap(g, gx, gy)
- *   - GridPanel_getHeaderRows(g)
- *   - GridPanel_getHeaderCols(g)
- *   - GridPanel_getRowHeight(g, row)
- *   - GridPanel_rowCount(g)
- *   - GridPanel_colCount(g)
+ *   - GridContainer_getGap(g, gx, gy)
+ *   - GridContainer_getHeaderRows(g)
+ *   - GridContainer_getHeaderCols(g)
+ *   - GridContainer_getRowHeight(g, row)
+ *   - GridContainer_rowCount(g)
+ *   - GridContainer_colCount(g)
  * ============================================================================
  */
 
@@ -74,7 +74,7 @@
 
 // Grow the slot arrays to cover (row, col); exact-size policy, row-major
 // remap. Updates the logical extent on success. True unless OOM.
-static bool ensureCapacity(GridPanel *g, int32_t row, int32_t col) {
+static bool ensureCapacity(GridContainer *g, int32_t row, int32_t col) {
     int32_t rows = (*g).rows;
     int32_t cols = (*g).cols;
     int32_t wantR = row + 1;
@@ -117,8 +117,8 @@ static bool ensureCapacity(GridPanel *g, int32_t row, int32_t col) {
     return true;
 }
 
-GridPanel *GridPanel_0(void) {
-    GridPanel *g = (GridPanel*) Memory_alloc(TYPE_GRID_PANEL_SINGLETON, sizeof(GridPanel));
+GridContainer *GridContainer_0(void) {
+    GridContainer *g = (GridContainer*) Memory_alloc(TYPE_GRID_PANEL_SINGLETON, sizeof(GridContainer));
     if (!g)
         return nullptr;
     Panel *b = Panel_0();
@@ -139,8 +139,8 @@ GridPanel *GridPanel_0(void) {
     return g;
 }
 
-GridPanel *GridPanel_2(int32_t rows, int32_t cols) {
-    GridPanel *g = GridPanel_0();
+GridContainer *GridContainer_2(int32_t rows, int32_t cols) {
+    GridContainer *g = GridContainer_0();
     if (!g)
         return nullptr;
     if (rows < 0)
@@ -159,7 +159,7 @@ GridPanel *GridPanel_2(int32_t rows, int32_t cols) {
 // CORE FUNCTIONS
 // ============================================================================
 
-static void markDirty(GridPanel *g) {
+static void markDirty(GridContainer *g) {
     if (!g)
         return;
     Panel *b = &(*g).base;
@@ -167,7 +167,7 @@ static void markDirty(GridPanel *g) {
     Container_markDirty(c);
 }
 
-static float colWidth(const GridPanel *g, int32_t col) {
+static float colWidth(const GridContainer *g, int32_t col) {
     float w = 0.0f;
     int32_t rows = (*g).rows;
     int32_t cols = (*g).cols;
@@ -185,7 +185,7 @@ static float colWidth(const GridPanel *g, int32_t col) {
     return w;
 }
 
-static float rowHeightOf(const GridPanel *g, int32_t row) {
+static float rowHeightOf(const GridContainer *g, int32_t row) {
     float *heights = (*g).rowHeights;
     float fixed = heights[row];
     if (fixed >= 0.0f)
@@ -206,7 +206,7 @@ static float rowHeightOf(const GridPanel *g, int32_t row) {
     return h;
 }
 
-void GridPanel_layout(GridPanel *g) {
+void GridContainer_layout(GridContainer *g) {
     if (!g)
         return;
     Panel *b = &(*g).base;
@@ -241,7 +241,7 @@ void GridPanel_layout(GridPanel *g) {
     Container_markDirty(c);
 }
 
-void GridPanel_setCell(GridPanel *g, int32_t row, int32_t col, Panel *cell) {
+void GridContainer_setCell(GridContainer *g, int32_t row, int32_t col, Panel *cell) {
     if (!g)
         return;
     if (row < 0 || col < 0)
@@ -253,10 +253,10 @@ void GridPanel_setCell(GridPanel *g, int32_t row, int32_t col, Panel *cell) {
     if (!cells)
         return;
     cells[(size_t) row * (size_t) cols + (size_t) col] = cell;
-    GridPanel_layout(g);
+    GridContainer_layout(g);
 }
 
-Panel *GridPanel_getCell(const GridPanel *g, int32_t row, int32_t col) {
+Panel *GridContainer_getCell(const GridContainer *g, int32_t row, int32_t col) {
     if (!g)
         return nullptr;
     if (row < 0 || col < 0)
@@ -274,7 +274,7 @@ Panel *GridPanel_getCell(const GridPanel *g, int32_t row, int32_t col) {
 // SETTERS
 // ============================================================================
 
-void GridPanel_setGap(GridPanel *g, float gx, float gy) {
+void GridContainer_setGap(GridContainer *g, float gx, float gy) {
     if (!g)
         return;
     if (gx < 0.0f)
@@ -283,11 +283,11 @@ void GridPanel_setGap(GridPanel *g, float gx, float gy) {
         gy = 0.0f;
     (*g).gapX = gx;
     (*g).gapY = gy;
-    GridPanel_layout(g);
+    GridContainer_layout(g);
     markDirty(g);
 }
 
-void GridPanel_setHeaderRows(GridPanel *g, int32_t count) {
+void GridContainer_setHeaderRows(GridContainer *g, int32_t count) {
     if (!g)
         return;
     if (count < 0)
@@ -296,7 +296,7 @@ void GridPanel_setHeaderRows(GridPanel *g, int32_t count) {
     markDirty(g);
 }
 
-void GridPanel_setHeaderCols(GridPanel *g, int32_t count) {
+void GridContainer_setHeaderCols(GridContainer *g, int32_t count) {
     if (!g)
         return;
     if (count < 0)
@@ -305,7 +305,7 @@ void GridPanel_setHeaderCols(GridPanel *g, int32_t count) {
     markDirty(g);
 }
 
-void GridPanel_setRowHeight(GridPanel *g, int32_t row, float h) {
+void GridContainer_setRowHeight(GridContainer *g, int32_t row, float h) {
     if (!g)
         return;
     if (row < 0 || row >= (*g).rows)
@@ -314,14 +314,14 @@ void GridPanel_setRowHeight(GridPanel *g, int32_t row, float h) {
     if (!heights)
         return;
     heights[row] = h < 0.0f ? -1.0f : h;
-    GridPanel_layout(g);
+    GridContainer_layout(g);
     markDirty(g);
 }
 
 // GETTERS
 // ============================================================================
 
-void GridPanel_getGap(const GridPanel *g, float *gx, float *gy) {
+void GridContainer_getGap(const GridContainer *g, float *gx, float *gy) {
     float ox = g ? (*g).gapX : 0.0f;
     float oy = g ? (*g).gapY : 0.0f;
     if (gx)
@@ -330,15 +330,15 @@ void GridPanel_getGap(const GridPanel *g, float *gx, float *gy) {
         *gy = oy;
 }
 
-int32_t GridPanel_getHeaderRows(const GridPanel *g) {
+int32_t GridContainer_getHeaderRows(const GridContainer *g) {
     return g ? (*g).headerRows : 0;
 }
 
-int32_t GridPanel_getHeaderCols(const GridPanel *g) {
+int32_t GridContainer_getHeaderCols(const GridContainer *g) {
     return g ? (*g).headerCols : 0;
 }
 
-float GridPanel_getRowHeight(const GridPanel *g, int32_t row) {
+float GridContainer_getRowHeight(const GridContainer *g, int32_t row) {
     if (!g)
         return 0.0f;
     if (row < 0 || row >= (*g).rows)
@@ -349,10 +349,10 @@ float GridPanel_getRowHeight(const GridPanel *g, int32_t row) {
     return heights[row];
 }
 
-int32_t GridPanel_rowCount(const GridPanel *g) {
+int32_t GridContainer_rowCount(const GridContainer *g) {
     return g ? (*g).rows : 0;
 }
 
-int32_t GridPanel_colCount(const GridPanel *g) {
+int32_t GridContainer_colCount(const GridContainer *g) {
     return g ? (*g).cols : 0;
 }

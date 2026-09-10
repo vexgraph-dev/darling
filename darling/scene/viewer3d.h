@@ -60,10 +60,10 @@ static inline void Viewer3D_setLocation(Viewer3D *v, float x, float y)
     { if (v) Panel_setLocation(&(*v).base, x, y); }
 static inline void Viewer3D_setSize(Viewer3D *v, float w, float h)
     { if (v) Panel_setSize(&(*v).base, w, h); }
-static inline void Viewer3D_setParentAnchor(Viewer3D *v, int anchor)
-    { if (v) Panel_setParentAnchor(&(*v).base, anchor); }
-static inline void Viewer3D_setSelfAnchor(Viewer3D *v, int anchor)
-    { if (v) Panel_setSelfAnchor(&(*v).base, anchor); }
+static inline void Viewer3D_setAnchor(Viewer3D *v, int anchor)
+    { if (v) Panel_setAnchor(&(*v).base, anchor); }
+static inline void Viewer3D_setPivot(Viewer3D *v, int pivot)
+    { if (v) Panel_setPivot(&(*v).base, pivot); }
 static inline void Viewer3D_setBackgroundColor(Viewer3D *v, uint32_t color)
     { if (v) Panel_setBackgroundColor(&(*v).base, color); }
 

@@ -1,4 +1,4 @@
-#include "darling/panel/sectionpanel.h"
+#include "darling/panel/section_container.h"
 
 #include "darling/panel/panel.h"
 #include "annotation/incomplete.h"
@@ -13,14 +13,18 @@
 ;;OVERVIEW
 /**
  * ============================================================================
- * CLASS: SectionPanel (embeds Panel)
- * LEVEL: L2 — Behavior (section-switching panel shell)
+ * CLASS: SectionContainer (embeds Panel)
+ * LEVEL: L2 — Behavior (section container)
  * ============================================================================
- * Panel shell whose children are sections with exactly one current index.
- * Selection advance clamps or wraps today; showing/hiding section children
- * lands in a later pass.
+ * Container whose children are sections with exactly one current index.
+ * Only the current section is live (attached with a surface). Hidden
+ * sections detach — zero layers, zero surfaces (Rule: hidden = zero).
  *
- * STRUCT FIELDS (Mirroring darling/panel/sectionpanel.h):
+ * Layer accounting:
+ *   active section .......... visible child layers ONLY
+ *   hidden sections ......... 0 layers, 0 surfaces (detached)
+ *
+ * STRUCT FIELDS (Mirroring darling/panel/sectioncontainer.h):
  * ----------------------------------------------------------------------------
  *   Panel base;                        // Inherited layout/tree/background state
  *   int32_t current;                   // Current section index
@@ -31,29 +35,29 @@
  * FUNCTION REGISTRY:
  * ----------------------------------------------------------------------------
  * Constructors:
- *   - SectionPanel_0(void)
- *   - SectionPanel_1(parent)
+ *   - SectionContainer_0(void)
+ *   - SectionContainer_1(parent)
  *
  * Core Functions:
- *   - SectionPanel_next(s)
- *   - SectionPanel_prev(s)
+ *   - SectionContainer_next(s)
+ *   - SectionContainer_prev(s)
  *
  * Setters:
- *   - SectionPanel_setCurrent(s, index)
- *   - SectionPanel_setWrapAround(s, wrap)
+ *   - SectionContainer_setCurrent(s, index)
+ *   - SectionContainer_setWrapAround(s, wrap)
  *
  * Getters:
- *   - SectionPanel_getCurrent(s)
- *   - SectionPanel_getCount(s)
- *   - SectionPanel_getWrapAround(s)
+ *   - SectionContainer_getCurrent(s)
+ *   - SectionContainer_getCount(s)
+ *   - SectionContainer_getWrapAround(s)
  * ============================================================================
  */
 
 // CONSTRUCTORS
 // ============================================================================
 
-SectionPanel *SectionPanel_0(void) {
-    SectionPanel *s = (SectionPanel*) Memory_alloc(TYPE_SECTION_PANEL_SINGLETON, sizeof(SectionPanel));
+SectionContainer *SectionContainer_0(void) {
+    SectionContainer *s = (SectionContainer*) Memory_alloc(TYPE_SECTION_CONTAINER_SINGLETON, sizeof(SectionContainer));
     if (!s)
         return nullptr;
     Panel *b = Panel_0();
@@ -70,8 +74,8 @@ SectionPanel *SectionPanel_0(void) {
     return s;
 }
 
-SectionPanel *SectionPanel_1(Panel *parent) {
-    SectionPanel *s = SectionPanel_0();
+SectionContainer *SectionContainer_1(Panel *parent) {
+    SectionContainer *s = SectionContainer_0();
     if (s && parent) {
         Panel *b = &(*s).base;
         Panel_addContainer(parent, b);
@@ -82,24 +86,24 @@ SectionPanel *SectionPanel_1(Panel *parent) {
 // CORE FUNCTIONS
 // ============================================================================
 
-void SectionPanel_next(SectionPanel *s) {
+void SectionContainer_next(SectionContainer *s) {
     ;;INCOMPLETE // full show/hide of section children deferred
     if (!s)
         return;
-    SectionPanel_setCurrent(s, (*s).current + 1);
+    SectionContainer_setCurrent(s, (*s).current + 1);
 }
 
-void SectionPanel_prev(SectionPanel *s) {
+void SectionContainer_prev(SectionContainer *s) {
     ;;INCOMPLETE // full show/hide of section children deferred
     if (!s)
         return;
-    SectionPanel_setCurrent(s, (*s).current - 1);
+    SectionContainer_setCurrent(s, (*s).current - 1);
 }
 
 // SETTERS
 // ============================================================================
 
-static void markDirty(SectionPanel *s) {
+static void markDirty(SectionContainer *s) {
     if (!s)
         return;
     Panel *b = &(*s).base;
@@ -107,7 +111,7 @@ static void markDirty(SectionPanel *s) {
     Container_markDirty(c);
 }
 
-void SectionPanel_setCurrent(SectionPanel *s, int32_t index) {
+void SectionContainer_setCurrent(SectionContainer *s, int32_t index) {
     if (!s)
         return;
     Panel *b = &(*s).base;
@@ -133,7 +137,7 @@ void SectionPanel_setCurrent(SectionPanel *s, int32_t index) {
     markDirty(s);
 }
 
-void SectionPanel_setWrapAround(SectionPanel *s, bool wrap) {
+void SectionContainer_setWrapAround(SectionContainer *s, bool wrap) {
     if (!s)
         return;
     (*s).wrapAround = wrap;
@@ -143,17 +147,17 @@ void SectionPanel_setWrapAround(SectionPanel *s, bool wrap) {
 // GETTERS
 // ============================================================================
 
-int32_t SectionPanel_getCurrent(const SectionPanel *s) {
+int32_t SectionContainer_getCurrent(const SectionContainer *s) {
     return s ? (*s).current : 0;
 }
 
-int32_t SectionPanel_getCount(const SectionPanel *s) {
+int32_t SectionContainer_getCount(const SectionContainer *s) {
     if (!s)
         return 0;
     const Panel *b = &(*s).base;
     return (int32_t) Panel_childCount(b);
 }
 
-bool SectionPanel_getWrapAround(const SectionPanel *s) {
+bool SectionContainer_getWrapAround(const SectionContainer *s) {
     return s ? (*s).wrapAround : false;
 }
