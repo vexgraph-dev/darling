@@ -4,7 +4,6 @@
 #include <stdint.h>
 
 #include "c23/overload.h"
-#include "darling/scene/canvas.h"
 #include "darling/container.h"
 #include "darling/label/label.h"
 #include "darling/panel/panel.h"
@@ -33,7 +32,11 @@
 #include "darling/dialog/dialog.h"
 #include "darling/dialog/alertdialog.h"
 #include "darling/color/colordialog.h"
-#include "oop/type.h"
+
+// Forward only: Darling_classOf/Darling_add mention Canvas * in _Generic
+// lists but never dereference it — full canvas.h stays out, oop/type.h IDs
+// arrive via c23/darling-type.h. Keeps this header decoupled per lines 38-41.
+typedef struct Canvas Canvas;
 
 // darling/c23/add.h — unified add() for the darling tree (thin wrapper).
 // Lives in darling's c23/ (this folder), included as "c23/add.h".
